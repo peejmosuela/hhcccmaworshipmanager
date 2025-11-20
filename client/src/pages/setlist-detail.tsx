@@ -120,6 +120,10 @@ export default function SetlistDetailPage() {
     queryKey: ["/api/positions"],
   });
 
+  const { data: allSongLeaders = [] } = useQuery<SongLeader[]>({
+    queryKey: ["/api/song-leaders"],
+  });
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -184,6 +188,76 @@ export default function SetlistDetailPage() {
     },
   });
 
+  const updateWorshipLeaderMutation = useMutation({
+    mutationFn: async (songLeaderId: string | null) => {
+      // Fetch fresh data directly from API to ensure we have the latest state
+      const response = await fetch(`/api/setlists/${setlistId}`);
+      if (!response.ok) throw new Error("Failed to fetch setlist");
+      const currentSetlist = await response.json() as SetlistWithSongs;
+      
+      // Use PUT with full setlist data including all required fields
+      // Ensure date is properly formatted and isTemplate is numeric
+      return apiRequest("PUT", `/api/setlists/${setlistId}`, {
+        name: currentSetlist.name,
+        date: typeof currentSetlist.date === 'string' ? currentSetlist.date : new Date(currentSetlist.date).toISOString(),
+        notes: currentSetlist.notes || null,
+        songLeaderId,
+        isTemplate: Number(currentSetlist.isTemplate ?? 0),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/setlists", setlistId] });
+      toast({ title: "Success", description: "Worship leader updated" });
+    },
+  });
+
+  const toggleTeamMemberMutation = useMutation({
+    mutationFn: async ({ musicianId, isAssigned }: { musicianId: string; isAssigned: boolean }) => {
+      // Fetch fresh data directly from API to prevent stale cache data loss
+      const response = await fetch(`/api/setlists/${setlistId}`);
+      if (!response.ok) throw new Error("Failed to fetch setlist");
+      const currentSetlist = await response.json() as SetlistWithSongs;
+      const currentAssignments = currentSetlist.musicians || [];
+      
+      let newAssignments: Array<{ musicianId: string; positionId?: string }>;
+      if (isAssigned) {
+        // Check if already assigned (either with or without position)
+        const alreadyAssigned = currentAssignments.some(m => m.musicianId === musicianId);
+        if (alreadyAssigned) {
+          // Already assigned, preserve all existing assignments with proper positionId format
+          newAssignments = currentAssignments.map(m => {
+            const result: { musicianId: string; positionId?: string } = { musicianId: m.musicianId };
+            if (m.positionId) result.positionId = m.positionId;
+            return result;
+          });
+        } else {
+          // Add the team member without a position, preserve existing assignments
+          newAssignments = currentAssignments.map(m => {
+            const result: { musicianId: string; positionId?: string } = { musicianId: m.musicianId };
+            if (m.positionId) result.positionId = m.positionId;
+            return result;
+          });
+          newAssignments.push({ musicianId });
+        }
+      } else {
+        // Remove ONLY the team member assignment without a position
+        // Keep position-based assignments (those with positionId)
+        newAssignments = currentAssignments
+          .filter(m => !(m.musicianId === musicianId && !m.positionId))
+          .map(m => {
+            const result: { musicianId: string; positionId?: string } = { musicianId: m.musicianId };
+            if (m.positionId) result.positionId = m.positionId;
+            return result;
+          });
+      }
+      
+      return apiRequest("PUT", `/api/setlists/${setlistId}/musicians`, { assignments: newAssignments });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/setlists", setlistId] });
+    },
+  });
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || !setlist) return;
@@ -209,8 +283,21 @@ export default function SetlistDetailPage() {
     return assignment?.musicianId || "none";
   };
 
+  const isTeamMemberAssigned = (musicianId: string) => {
+    // Only check for assignments WITHOUT a position (team-only assignments)
+    return setlist?.musicians.some(m => m.musicianId === musicianId && !m.positionId) || false;
+  };
+
   // Filter musicians to only show Band Musicians for positions
   const bandMusicians = allMusicians.filter(m => m.teamCategory === "Band Musicians");
+  
+  // Filter other team members
+  const backupSingers = allMusicians.filter(m => m.teamCategory === "Backup Singers");
+  const mediaTeam = allMusicians.filter(m => m.teamCategory === "Media");
+  const dancers = allMusicians.filter(m => m.teamCategory === "Dancers");
+  
+  // Get worship leader's first name
+  const getFirstName = (fullName: string) => fullName.split(' ')[0];
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-full">Loading...</div>;
@@ -240,7 +327,7 @@ export default function SetlistDetailPage() {
           </Link>
           <div className="flex-1">
             <h1 className="text-4xl font-semibold" data-testid="text-setlist-name">
-              {setlist.name}
+              {setlist.songLeader ? `${getFirstName(setlist.songLeader.name)}'s ${setlist.name}` : setlist.name}
             </h1>
             <div className="flex items-center gap-4 mt-2 text-muted-foreground">
               <div className="flex items-center gap-2">
@@ -370,29 +457,34 @@ export default function SetlistDetailPage() {
           </div>
 
           <div className="space-y-6">
-            {setlist.songLeader && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5" />
-                    Worship Leader
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-lg">
-                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <User className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <div className="font-medium">{setlist.songLeader.name}</div>
-                      {setlist.songLeader.contact && (
-                        <div className="text-sm text-muted-foreground">{setlist.songLeader.contact}</div>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Worship Leader
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Select
+                  value={setlist.songLeaderId || "none"}
+                  onValueChange={(leaderId) => {
+                    updateWorshipLeaderMutation.mutate(leaderId === "none" ? null : leaderId);
+                  }}
+                >
+                  <SelectTrigger data-testid="select-worship-leader">
+                    <SelectValue placeholder="Unassigned" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Unassigned</SelectItem>
+                    {allSongLeaders.map((leader) => (
+                      <SelectItem key={leader.id} value={leader.id}>
+                        {leader.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
 
             <Card>
               <CardHeader>
@@ -435,6 +527,138 @@ export default function SetlistDetailPage() {
                       <Link href="/musicians">
                         <Button variant="outline" size="sm">
                           Add Band Musicians
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Backup Singers
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {backupSingers.map((singer) => (
+                    <label
+                      key={singer.id}
+                      className="flex items-center gap-3 cursor-pointer p-2 rounded hover-elevate"
+                      data-testid={`checkbox-backup-singer-${singer.id}`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4"
+                        checked={isTeamMemberAssigned(singer.id)}
+                        onChange={(e) => {
+                          toggleTeamMemberMutation.mutate({
+                            musicianId: singer.id,
+                            isAssigned: e.target.checked
+                          });
+                        }}
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium">{singer.name}</div>
+                      </div>
+                    </label>
+                  ))}
+                  {backupSingers.length === 0 && (
+                    <div className="text-center py-6 text-muted-foreground text-sm">
+                      <Link href="/musicians">
+                        <Button variant="outline" size="sm">
+                          Add Backup Singers
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Media
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {mediaTeam.map((member) => (
+                    <label
+                      key={member.id}
+                      className="flex items-center gap-3 cursor-pointer p-2 rounded hover-elevate"
+                      data-testid={`checkbox-media-${member.id}`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4"
+                        checked={isTeamMemberAssigned(member.id)}
+                        onChange={(e) => {
+                          toggleTeamMemberMutation.mutate({
+                            musicianId: member.id,
+                            isAssigned: e.target.checked
+                          });
+                        }}
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium">{member.name}</div>
+                      </div>
+                    </label>
+                  ))}
+                  {mediaTeam.length === 0 && (
+                    <div className="text-center py-6 text-muted-foreground text-sm">
+                      <Link href="/musicians">
+                        <Button variant="outline" size="sm">
+                          Add Media Team
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Dancers
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {dancers.map((dancer) => (
+                    <label
+                      key={dancer.id}
+                      className="flex items-center gap-3 cursor-pointer p-2 rounded hover-elevate"
+                      data-testid={`checkbox-dancer-${dancer.id}`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4"
+                        checked={isTeamMemberAssigned(dancer.id)}
+                        onChange={(e) => {
+                          toggleTeamMemberMutation.mutate({
+                            musicianId: dancer.id,
+                            isAssigned: e.target.checked
+                          });
+                        }}
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium">{dancer.name}</div>
+                      </div>
+                    </label>
+                  ))}
+                  {dancers.length === 0 && (
+                    <div className="text-center py-6 text-muted-foreground text-sm">
+                      <Link href="/musicians">
+                        <Button variant="outline" size="sm">
+                          Add Dancers
                         </Button>
                       </Link>
                     </div>

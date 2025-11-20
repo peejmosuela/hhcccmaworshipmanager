@@ -93,6 +93,47 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card data-testid="card-recent-setlists">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Recent Setlists
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {recentSetlists.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <List className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                  <p>No setlists created yet</p>
+                  <Link href="/setlists">
+                    <Button variant="outline" className="mt-4" data-testid="button-create-first-setlist">
+                      Create Your First Setlist
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {recentSetlists.map((setlist) => (
+                    <Link key={setlist.id} href="/setlists">
+                      <div
+                        className="flex items-center justify-between p-3 rounded-lg bg-card border hover-elevate cursor-pointer"
+                        data-testid={`item-recent-setlist-${setlist.id}`}
+                      >
+                        <div>
+                          <div className="font-medium">{setlist.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {format(new Date(setlist.date), "MMM d, yyyy")}
+                          </div>
+                        </div>
+                        <List className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card data-testid="card-upcoming-services">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -131,47 +172,6 @@ export default function DashboardPage() {
                         </Button>
                       </Link>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card data-testid="card-recent-setlists">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                Recent Setlists
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {recentSetlists.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <List className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                  <p>No setlists created yet</p>
-                  <Link href="/setlists">
-                    <Button variant="outline" className="mt-4" data-testid="button-create-first-setlist">
-                      Create Your First Setlist
-                    </Button>
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {recentSetlists.map((setlist) => (
-                    <Link key={setlist.id} href="/setlists">
-                      <div
-                        className="flex items-center justify-between p-3 rounded-lg bg-card border hover-elevate cursor-pointer"
-                        data-testid={`item-recent-setlist-${setlist.id}`}
-                      >
-                        <div>
-                          <div className="font-medium">{setlist.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {format(new Date(setlist.date), "MMM d, yyyy")}
-                          </div>
-                        </div>
-                        <List className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                    </Link>
                   ))}
                 </div>
               )}

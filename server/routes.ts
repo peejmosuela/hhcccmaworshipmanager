@@ -197,6 +197,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Positions
+  app.get("/api/positions", async (_req, res) => {
+    try {
+      const positions = await storage.getPositions();
+      res.json(positions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch positions" });
+    }
+  });
+
   // Setlists CRUD
   app.get("/api/setlists", async (_req, res) => {
     try {
@@ -229,9 +239,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const musiciansWithDetails = await Promise.all(
         setlistMusicians.map(async (sm) => {
           const musician = await storage.getMusician(sm.musicianId);
+          const position = sm.positionId 
+            ? await storage.getPosition(sm.positionId)
+            : undefined;
           return {
             ...sm,
             musician: musician!,
+            position,
           };
         })
       );
@@ -406,12 +420,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setlist Musicians
   app.put("/api/setlists/:id/musicians", async (req, res) => {
     try {
-      const { musicianIds } = req.body;
-      if (!Array.isArray(musicianIds)) {
-        return res.status(400).json({ error: "musicianIds must be an array" });
+      const { musicianIds, assignments } = req.body;
+      
+      // Support both old format (array of IDs) and new format (assignments with positions)
+      if (assignments && Array.isArray(assignments)) {
+        // New format: [{ musicianId, positionId? }]
+        // Validate position IDs exist
+        const positionIds = assignments.map(a => a.positionId).filter(Boolean);
+        for (const positionId of positionIds) {
+          const position = await storage.getPosition(positionId);
+          if (!position) {
+            return res.status(400).json({ error: `Invalid position ID: ${positionId}` });
+          }
+        }
+        await storage.setSetlistMusiciansWithPositions(req.params.id, assignments);
+      } else if (Array.isArray(musicianIds)) {
+        // Old format: [musicianId]
+        await storage.setSetlistMusicians(req.params.id, musicianIds);
+      } else {
+        return res.status(400).json({ error: "Invalid request format" });
       }
 
-      await storage.setSetlistMusicians(req.params.id, musicianIds);
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to update musicians" });

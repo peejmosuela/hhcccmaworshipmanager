@@ -44,6 +44,7 @@ export const musicians = pgTable("musicians", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   instrument: text("instrument"), // e.g., "Guitar", "Piano", "Vocals"
+  teamCategory: text("team_category").notNull().default("Band Musicians"), // "Band Musicians", "Song Leaders", "Media", "Backup Singers", "Dancers"
   contact: text("contact"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -53,6 +54,14 @@ export const songLeaders = pgTable("song_leaders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   contact: text("contact"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Positions table - predefined roles for setlists
+export const positions = pgTable("positions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(), // "Keys", "2nd Keys", "Electric Guitar", etc.
+  order: integer("order").notNull(), // Display order
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -81,6 +90,7 @@ export const setlistMusicians = pgTable("setlist_musicians", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   setlistId: varchar("setlist_id").notNull().references(() => setlists.id, { onDelete: "cascade" }),
   musicianId: varchar("musician_id").notNull().references(() => musicians.id, { onDelete: "cascade" }),
+  positionId: varchar("position_id").references(() => positions.id), // Optional: for fixed position assignments
 });
 
 // Song usage tracking - when and how often songs are used
@@ -120,6 +130,11 @@ export const insertSetlistMusicianSchema = createInsertSchema(setlistMusicians).
   id: true,
 });
 
+export const insertPositionSchema = createInsertSchema(positions).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertSongUsageSchema = createInsertSchema(songUsage).omit({
   id: true,
 });
@@ -143,6 +158,9 @@ export type InsertSetlistSong = z.infer<typeof insertSetlistSongSchema>;
 export type SetlistMusician = typeof setlistMusicians.$inferSelect;
 export type InsertSetlistMusician = z.infer<typeof insertSetlistMusicianSchema>;
 
+export type Position = typeof positions.$inferSelect;
+export type InsertPosition = z.infer<typeof insertPositionSchema>;
+
 export type SongUsage = typeof songUsage.$inferSelect;
 export type InsertSongUsage = z.infer<typeof insertSongUsageSchema>;
 
@@ -150,7 +168,7 @@ export type InsertSongUsage = z.infer<typeof insertSongUsageSchema>;
 export type SetlistWithDetails = Setlist & {
   songLeader?: SongLeader;
   songs: Array<SetlistSong & { song: Song }>;
-  musicians: Array<SetlistMusician & { musician: Musician }>;
+  musicians: Array<SetlistMusician & { musician: Musician; position?: Position }>;
 };
 
 export type SongWithUsage = Song & {

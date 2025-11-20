@@ -13,6 +13,7 @@ import {
   type InsertSetlistMusician,
   type SongUsage,
   type InsertSongUsage,
+  type Position,
   type User,
   type UpsertUser,
   songs,
@@ -22,10 +23,11 @@ import {
   setlistSongs,
   setlistMusicians,
   songUsage,
+  positions,
   users,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, asc } from "drizzle-orm";
 
 export interface IStorage {
   // User operations for Replit Auth
@@ -54,6 +56,10 @@ export interface IStorage {
   updateSongLeader(id: string, leader: InsertSongLeader): Promise<SongLeader | undefined>;
   deleteSongLeader(id: string): Promise<boolean>;
 
+  // Positions
+  getPositions(): Promise<Position[]>;
+  getPosition(id: string): Promise<Position | undefined>;
+
   // Setlists
   getSetlists(): Promise<Setlist[]>;
   getSetlist(id: string): Promise<Setlist | undefined>;
@@ -72,6 +78,7 @@ export interface IStorage {
   // Setlist Musicians
   getSetlistMusicians(setlistId: string): Promise<SetlistMusician[]>;
   setSetlistMusicians(setlistId: string, musicianIds: string[]): Promise<void>;
+  setSetlistMusiciansWithPositions(setlistId: string, assignments: Array<{ musicianId: string; positionId?: string }>): Promise<void>;
 
   // Song Usage
   trackSongUsage(data: InsertSongUsage): Promise<SongUsage>;
@@ -175,6 +182,16 @@ export class DbStorage implements IStorage {
   async deleteSongLeader(id: string): Promise<boolean> {
     const result = await db.delete(songLeaders).where(eq(songLeaders.id, id));
     return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Positions
+  async getPositions(): Promise<Position[]> {
+    return await db.select().from(positions).orderBy(asc(positions.order));
+  }
+
+  async getPosition(id: string): Promise<Position | undefined> {
+    const [position] = await db.select().from(positions).where(eq(positions.id, id));
+    return position;
   }
 
   // Setlists
@@ -293,6 +310,24 @@ export class DbStorage implements IStorage {
       const values = musicianIds.map(musicianId => ({
         setlistId,
         musicianId,
+      }));
+      await db.insert(setlistMusicians).values(values);
+    }
+  }
+
+  async setSetlistMusiciansWithPositions(
+    setlistId: string, 
+    assignments: Array<{ musicianId: string; positionId?: string }>
+  ): Promise<void> {
+    // Remove existing musicians
+    await db.delete(setlistMusicians).where(eq(setlistMusicians.setlistId, setlistId));
+
+    // Add new musicians with positions
+    if (assignments.length > 0) {
+      const values = assignments.map(({ musicianId, positionId }) => ({
+        setlistId,
+        musicianId,
+        positionId: positionId || null,
       }));
       await db.insert(setlistMusicians).values(values);
     }

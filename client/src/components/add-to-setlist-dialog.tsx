@@ -9,6 +9,7 @@ import type { Song, Setlist } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getAllKeys } from "@/lib/chordUtils";
 
 interface AddToSetlistDialogProps {
   song: Song;
@@ -18,7 +19,15 @@ interface AddToSetlistDialogProps {
 
 export function AddToSetlistDialog({ song, open, onClose }: AddToSetlistDialogProps) {
   const [selectedSetlistId, setSelectedSetlistId] = useState<string>("");
+  const [transposedKey, setTransposedKey] = useState<string>("");
   const { toast } = useToast();
+
+  // Reset state when dialog opens with new song
+  useState(() => {
+    if (open) {
+      setTransposedKey(song.originalKey);
+    }
+  });
 
   const { data: setlists = [], isLoading } = useQuery<Setlist[]>({
     queryKey: ["/api/setlists"],
@@ -27,9 +36,13 @@ export function AddToSetlistDialog({ song, open, onClose }: AddToSetlistDialogPr
 
   const addToSetlistMutation = useMutation({
     mutationFn: async (setlistId: string) => {
-      return apiRequest("POST", `/api/setlists/${setlistId}/songs`, {
+      const payload: any = {
         songId: song.id,
-      });
+      };
+      if (transposedKey && transposedKey !== song.originalKey) {
+        payload.transposedKey = transposedKey;
+      }
+      return apiRequest("POST", `/api/setlists/${setlistId}/songs`, payload);
     },
     onSuccess: (_, setlistId) => {
       queryClient.invalidateQueries({ queryKey: ["/api/setlists"] });
@@ -38,6 +51,8 @@ export function AddToSetlistDialog({ song, open, onClose }: AddToSetlistDialogPr
         title: "Success",
         description: `"${song.title}" added to setlist`,
       });
+      setSelectedSetlistId("");
+      setTransposedKey(song.originalKey);
       onClose();
     },
     onError: () => {
@@ -91,6 +106,27 @@ export function AddToSetlistDialog({ song, open, onClose }: AddToSetlistDialogPr
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Key for this Setlist</Label>
+                <Select value={transposedKey} onValueChange={setTransposedKey}>
+                  <SelectTrigger data-testid="select-transpose-key">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getAllKeys().map((key) => (
+                      <SelectItem key={key} value={key}>
+                        {key} {key === song.originalKey && "(Original)"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {transposedKey !== song.originalKey && (
+                  <p className="text-xs text-muted-foreground">
+                    Original key: {song.originalKey}
+                  </p>
+                )}
               </div>
 
               <div className="flex justify-end gap-2">

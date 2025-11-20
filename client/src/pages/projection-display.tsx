@@ -38,6 +38,7 @@ export default function ProjectionDisplayPage() {
   const setlistId = params.id;
   const { toast } = useToast();
   const [fontSize, setFontSize] = useState(16);
+  const [chordColor, setChordColor] = useState("#22c55e");
   const [highlightChords, setHighlightChords] = useState(true);
   const [showControls, setShowControls] = useState(true);
   const [controlsTimeout, setControlsTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -69,15 +70,8 @@ export default function ProjectionDisplayPage() {
     }
   };
 
-  const getChordColorClass = () => {
-    switch (colorScheme) {
-      case "light":
-        return "text-blue-600";
-      case "inverted":
-        return "text-indigo-700";
-      default:
-        return "text-green-400";
-    }
+  const getChordColorStyle = () => {
+    return { color: chordColor };
   };
 
   const transposeMutation = useMutation({
@@ -168,7 +162,7 @@ export default function ProjectionDisplayPage() {
     } else if (e.key === "+" || e.key === "=") {
       setFontSize((prev) => Math.min(prev + 4, 64));
     } else if (e.key === "-" || e.key === "_") {
-      setFontSize((prev) => Math.max(prev - 4, 16));
+      setFontSize((prev) => Math.max(prev - 4, 8));
     }
   }, [setLocation]);
 
@@ -203,12 +197,11 @@ export default function ProjectionDisplayPage() {
         return (
           <div
             key={idx}
-            className={cn(
-              "font-mono break-words",
-              highlightChords && getChordColorClass(),
-              highlightChords && "font-semibold"
-            )}
-            style={{ fontSize: `${fontSize}px` }}
+            className="font-mono break-words"
+            style={{ 
+              fontSize: `${fontSize}px`,
+              ...(highlightChords ? { ...getChordColorStyle(), fontWeight: 600 } : {})
+            }}
           >
             {transposeChord(line, semitones)}
           </div>
@@ -538,7 +531,7 @@ export default function ProjectionDisplayPage() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setFontSize((prev) => Math.max(prev - 4, 16))}
+                onClick={() => setFontSize((prev) => Math.max(prev - 4, 8))}
                 data-testid="button-decrease-font"
                 className="h-7 w-7 md:h-9 md:w-9"
               >
@@ -556,7 +549,7 @@ export default function ProjectionDisplayPage() {
               </Button>
             </div>
 
-            <div className="flex items-center gap-1 border-r border-white/20 pr-2 md:pr-4">
+            <div className="flex items-center gap-1 md:gap-2 border-r border-white/20 pr-2 md:pr-4">
               <Button
                 variant={highlightChords ? "default" : "ghost"}
                 size="sm"
@@ -566,6 +559,16 @@ export default function ProjectionDisplayPage() {
               >
                 Chords
               </Button>
+              <label className="flex items-center gap-1 cursor-pointer" title="Chord color">
+                <span className="text-xs hidden md:inline">Color:</span>
+                <input
+                  type="color"
+                  value={chordColor}
+                  onChange={(e) => setChordColor(e.target.value)}
+                  className="h-6 w-8 md:h-7 md:w-10 cursor-pointer rounded border border-white/30"
+                  data-testid="input-chord-color"
+                />
+              </label>
             </div>
 
             <div className="flex items-center gap-1 border-r border-white/20 pr-2 md:pr-4">

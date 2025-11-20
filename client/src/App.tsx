@@ -5,8 +5,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import DashboardPage from "@/pages/dashboard";
 import SongsPage from "@/pages/songs";
 import SetlistsPage from "@/pages/setlists";
+import SetlistDetailPage from "@/pages/setlist-detail";
 import MusiciansPage from "@/pages/musicians";
 import StatisticsPage from "@/pages/statistics";
 import ProjectionDisplayPage from "@/pages/projection-display";
@@ -15,8 +17,10 @@ import NotFound from "@/pages/not-found";
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={SongsPage} />
+      <Route path="/" component={DashboardPage} />
+      <Route path="/songs" component={SongsPage} />
       <Route path="/setlists" component={SetlistsPage} />
+      <Route path="/setlists/:id" component={SetlistDetailPage} />
       <Route path="/setlists/:id/present" component={ProjectionDisplayPage} />
       <Route path="/musicians" component={MusiciansPage} />
       <Route path="/statistics" component={StatisticsPage} />

@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation } from "wouter";
-import { Plus, Calendar, User, Music, Edit, Presentation, Copy, Trash2 } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import { Plus, Calendar, Presentation, Copy, Trash2, Music } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AddEditSetlistDialog } from "@/components/add-edit-setlist-dialog";
-import { SetlistDetailDialog } from "@/components/setlist-detail-dialog";
 import type { Setlist } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -26,7 +25,6 @@ export default function SetlistsPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [setlistToEdit, setSetlistToEdit] = useState<Setlist | null>(null);
-  const [selectedSetlist, setSelectedSetlist] = useState<Setlist | null>(null);
   const [setlistToDelete, setSetlistToDelete] = useState<Setlist | null>(null);
 
   const { data: setlists = [], isLoading } = useQuery<Setlist[]>({
@@ -162,15 +160,16 @@ export default function SetlistsPage() {
                   )}
 
                   <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => setSelectedSetlist(setlist)}
-                      data-testid={`button-view-setlist-${setlist.id}`}
-                    >
-                      View & Edit
-                    </Button>
+                    <Link href={`/setlists/${setlist.id}`}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        data-testid={`button-view-setlist-${setlist.id}`}
+                      >
+                        View & Edit
+                      </Button>
+                    </Link>
                     <Button
                       variant="default"
                       size="sm"
@@ -192,14 +191,6 @@ export default function SetlistsPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => setSetlistToEdit(setlist)}
-                      data-testid={`button-edit-setlist-${setlist.id}`}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
                       onClick={() => setSetlistToDelete(setlist)}
                       data-testid={`button-delete-setlist-${setlist.id}`}
                     >
@@ -212,18 +203,6 @@ export default function SetlistsPage() {
           </div>
         )}
       </div>
-
-      {selectedSetlist && (
-        <SetlistDetailDialog
-          setlist={selectedSetlist}
-          open={!!selectedSetlist}
-          onClose={() => setSelectedSetlist(null)}
-          onEdit={() => {
-            setSetlistToEdit(selectedSetlist);
-            setSelectedSetlist(null);
-          }}
-        />
-      )}
 
       <AlertDialog open={!!setlistToDelete} onOpenChange={(open) => !open && setSetlistToDelete(null)}>
         <AlertDialogContent>
@@ -238,10 +217,10 @@ export default function SetlistsPage() {
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              variant="destructive"
               onClick={() => setlistToDelete && deleteMutation.mutate(setlistToDelete.id)}
               disabled={deleteMutation.isPending}
               data-testid="button-confirm-delete-setlist"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>

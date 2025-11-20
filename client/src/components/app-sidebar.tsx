@@ -1,4 +1,4 @@
-import { Music, ListMusic, Users, BarChart3, Settings } from "lucide-react";
+import { Home, Music, ListMusic, Users, BarChart3 } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -13,8 +13,13 @@ import { Link, useLocation } from "wouter";
 
 const menuItems = [
   {
-    title: "Songs",
+    title: "Dashboard",
     url: "/",
+    icon: Home,
+  },
+  {
+    title: "Songs",
+    url: "/songs",
     icon: Music,
   },
   {

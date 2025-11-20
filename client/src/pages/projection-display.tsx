@@ -1,19 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { type Song, type Setlist, type SongLeader, type Musician } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, X, Settings2, Music } from "lucide-react";
-import { transposeChord, getAllKeys, parseChordLine } from "@/lib/chordUtils";
+import { ChevronUp, ChevronDown, X, ZoomIn, ZoomOut, Music } from "lucide-react";
+import { transposeChord, getSemitoneDifference, parseChordLine } from "@/lib/chordUtils";
 import { cn } from "@/lib/utils";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuCheckboxItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 interface SetlistSongWithSong {
   id: string;
@@ -33,302 +25,299 @@ export default function ProjectionDisplayPage() {
   const params = useParams();
   const [, setLocation] = useLocation();
   const setlistId = params.id;
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [fontSize, setFontSize] = useState(28);
+  const [fontSize, setFontSize] = useState(32);
   const [highlightChords, setHighlightChords] = useState(true);
-  const [showControls, setShowControls] = useState(false);
+  const [showControls, setShowControls] = useState(true);
   const [controlsTimeout, setControlsTimeout] = useState<NodeJS.Timeout | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const songRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   const { data: setlist, isLoading } = useQuery<SetlistWithSongs>({
     queryKey: ["/api/setlists", setlistId],
   });
 
   const sortedSetlistSongs = setlist?.songs ? [...setlist.songs].sort((a, b) => a.order - b.order) : [];
-  const currentSetlistSong = sortedSetlistSongs[currentIndex];
-  const currentSong = currentSetlistSong?.song;
 
   const handleMouseMove = () => {
     setShowControls(true);
     if (controlsTimeout) {
       clearTimeout(controlsTimeout);
     }
-    const timeout = setTimeout(() => setShowControls(false), 3000);
+    const timeout = setTimeout(() => setShowControls(false), 5000);
     setControlsTimeout(timeout);
+  };
+
+  const handleTouchStart = () => {
+    if (!showControls) {
+      setShowControls(true);
+      const timeout = setTimeout(() => setShowControls(false), 5000);
+      setControlsTimeout(timeout);
+    }
   };
 
   useEffect(() => {
     return () => {
-      if (controlsTimeout) {
-        clearTimeout(controlsTimeout);
-      }
+      if (controlsTimeout) clearTimeout(controlsTimeout);
     };
   }, [controlsTimeout]);
 
-  const handleKeyPress = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight" || e.key === " ") {
-        e.preventDefault();
-        if (currentIndex < sortedSetlistSongs.length - 1) {
-          setCurrentIndex(currentIndex + 1);
-        }
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        if (currentIndex > 0) {
-          setCurrentIndex(currentIndex - 1);
-        }
-      } else if (e.key === "Escape") {
-        setLocation(`/setlists`);
-      } else if (e.key === "+") {
-        setFontSize((prev) => Math.min(prev + 2, 48));
-      } else if (e.key === "-") {
-        setFontSize((prev) => Math.max(prev - 2, 16));
-      }
-    },
-    [currentIndex, sortedSetlistSongs.length, setLocation]
-  );
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape") {
+      setLocation("/setlists");
+    } else if (e.key === "ArrowUp" || e.key === "PageUp") {
+      e.preventDefault();
+      containerRef.current?.scrollBy({ top: -window.innerHeight * 0.8, behavior: "smooth" });
+    } else if (e.key === "ArrowDown" || e.key === "PageDown" || e.key === " ") {
+      e.preventDefault();
+      containerRef.current?.scrollBy({ top: window.innerHeight * 0.8, behavior: "smooth" });
+    } else if (e.key === "+" || e.key === "=") {
+      setFontSize((prev) => Math.min(prev + 4, 64));
+    } else if (e.key === "-" || e.key === "_") {
+      setFontSize((prev) => Math.max(prev - 4, 16));
+    }
+  }, [setLocation]);
 
   useEffect(() => {
-    window.addEventListener("keydown", handleKeyPress);
-    return () => window.removeEventListener("keydown", handleKeyPress);
-  }, [handleKeyPress]);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
 
-  if (isLoading) {
-    return (
-      <div className="h-screen w-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    );
-  }
+  const scrollToSong = (songId: string) => {
+    const element = songRefs.current[songId];
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
 
-  if (sortedSetlistSongs.length === 0) {
-    return (
-      <div className="h-screen w-screen bg-background flex flex-col items-center justify-center gap-4">
-        <Music className="h-16 w-16 text-muted-foreground" />
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">No Songs in Setlist</h2>
-          <p className="text-muted-foreground mb-4">
-            Add songs to this setlist to use presentation mode.
-          </p>
-          <Button
-            onClick={() => setLocation("/setlists")}
-            data-testid="button-back-to-setlists"
-          >
-            Back to Setlists
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  const renderLyricsWithChords = (song: Song, transposedKey: string | null) => {
+    if (!song.lyrics) return null;
 
-  if (!currentSong || !currentSetlistSong) {
-    return (
-      <div className="h-screen w-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Song not found...</p>
-      </div>
-    );
-  }
+    const originalKey = song.originalKey;
+    const targetKey = transposedKey || originalKey;
+    const semitones = getSemitoneDifference(originalKey, targetKey);
+    const lines = song.lyrics.split("\n");
 
-  const renderLyrics = () => {
-    const lines = currentSong.lyrics.split("\n");
-    const result: JSX.Element[] = [];
-    const transposedKey = currentSetlistSong.transposedKey || currentSong.originalKey;
-    const semitones = getAllKeys().indexOf(transposedKey) - getAllKeys().indexOf(currentSong.originalKey);
+    return lines.map((line, idx) => {
+      if (!line.trim()) {
+        return <div key={idx} className="h-4" />;
+      }
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
       const chords = parseChordLine(line);
 
       if (chords.length > 0) {
-        const transposedChords = chords.map((chordInfo: { chord: string; position: number }) => ({
-          ...chordInfo,
-          chord: transposeChord(chordInfo.chord, semitones),
-        }));
-
-        result.push(
-          <div key={`line-${i}`} className="relative mb-1">
-            <div className="relative h-8">
-              {transposedChords.map((chordInfo: { chord: string; position: number }, idx: number) => (
-                <span
-                  key={idx}
-                  className={cn(
-                    "absolute font-bold whitespace-nowrap",
-                    highlightChords ? "text-primary" : "text-foreground"
-                  )}
-                  style={{
-                    left: `${chordInfo.position * 0.6}em`,
-                    top: 0,
-                  }}
-                >
-                  {chordInfo.chord}
-                </span>
-              ))}
-            </div>
-          </div>
-        );
-      } else {
-        result.push(
-          <div key={`line-${i}`} className="leading-relaxed">
-            {line || <br />}
+        return (
+          <div
+            key={idx}
+            className={cn(
+              "font-mono whitespace-pre",
+              highlightChords && "text-green-400 font-semibold"
+            )}
+            style={{ fontSize: `${fontSize}px` }}
+          >
+            {transposeChord(line, semitones)}
           </div>
         );
       }
-    }
 
-    return result;
+      return (
+        <div key={idx} className="whitespace-pre-wrap leading-relaxed" style={{ fontSize: `${fontSize}px` }}>
+          {line}
+        </div>
+      );
+    });
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-black text-white">
+        <div className="text-2xl">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!setlist || sortedSetlistSongs.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-black text-white">
+        <Music className="h-24 w-24 mb-6 opacity-50" />
+        <h2 className="text-3xl font-semibold mb-4">No Songs in Setlist</h2>
+        <p className="text-muted-foreground mb-8">
+          Add songs to this setlist to use presentation mode
+        </p>
+        <Button
+          onClick={() => setLocation("/setlists")}
+          variant="outline"
+          data-testid="button-back-to-setlists"
+        >
+          Back to Setlists
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div
-      className="h-screen w-screen bg-background flex flex-col overflow-hidden"
+      className="h-screen bg-black text-white overflow-hidden"
       onMouseMove={handleMouseMove}
+      onTouchStart={handleTouchStart}
       data-testid="projection-display"
     >
       <div
-        className={cn(
-          "absolute top-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-b p-4 flex items-center justify-between z-10 transition-transform duration-300",
-          showControls ? "translate-y-0" : "-translate-y-full"
-        )}
+        ref={containerRef}
+        className="h-full overflow-y-auto overflow-x-hidden scroll-smooth"
+        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setLocation("/setlists")}
-            data-testid="button-exit-projection"
-          >
-            <X className="h-5 w-5" />
-          </Button>
-          <div>
-            <h2 className="font-medium">{currentSong.title}</h2>
-            <p className="text-sm text-muted-foreground">
-              {currentSong.artist || "Unknown Artist"} • Key of{" "}
-              {currentSetlistSong.transposedKey || currentSong.originalKey}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">
-            Song {currentIndex + 1} of {sortedSetlistSongs.length}
-          </span>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" data-testid="button-display-settings">
-                <Settings2 className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Display Settings</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <div className="px-2 py-2 space-y-2">
+        <style>{`
+          div::-webkit-scrollbar {
+            display: none;
+          }
+        `}</style>
+        
+        <div className="max-w-5xl mx-auto px-8 py-16 space-y-24">
+          {sortedSetlistSongs.map((setlistSong, index) => (
+            <div
+              key={setlistSong.id}
+              ref={(el) => (songRefs.current[setlistSong.id] = el)}
+              className="min-h-screen flex flex-col justify-center"
+              data-testid={`song-section-${index}`}
+            >
+              <div className="mb-8 pb-4 border-b border-white/20">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Font Size</span>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => setFontSize((prev) => Math.max(prev - 2, 16))}
-                      data-testid="button-decrease-font"
-                    >
-                      -
-                    </Button>
-                    <span className="text-sm w-12 text-center">{fontSize}px</span>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => setFontSize((prev) => Math.min(prev + 2, 48))}
-                      data-testid="button-increase-font"
-                    >
-                      +
-                    </Button>
+                  <div>
+                    <h2 className="text-4xl font-bold mb-2" data-testid={`song-title-${index}`}>
+                      {setlistSong.song.title}
+                    </h2>
+                    <p className="text-xl text-muted-foreground">
+                      {setlistSong.song.artist}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-semibold mb-1">
+                      Key: {setlistSong.transposedKey || setlistSong.song.originalKey}
+                    </div>
+                    <div className="text-muted-foreground">
+                      Song {index + 1} of {sortedSetlistSongs.length}
+                    </div>
                   </div>
                 </div>
               </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuCheckboxItem
-                checked={highlightChords}
-                onCheckedChange={setHighlightChords}
-                data-testid="checkbox-highlight-chords"
-              >
-                Highlight Chords
-              </DropdownMenuCheckboxItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
 
-      <div className="flex-1 flex items-center justify-center px-12 py-20">
-        <div
-          className="max-w-5xl w-full font-mono"
-          style={{ fontSize: `${fontSize}px` }}
-          data-testid="projection-lyrics"
-        >
-          {renderLyrics()}
+              <div className="leading-loose">
+                {renderLyricsWithChords(setlistSong.song, setlistSong.transposedKey)}
+              </div>
+            </div>
+          ))}
+
+          <div className="h-screen flex items-center justify-center">
+            <div className="text-center">
+              <h2 className="text-5xl font-bold mb-4">End of Setlist</h2>
+              <p className="text-xl text-muted-foreground mb-8">
+                {sortedSetlistSongs.length} songs performed
+              </p>
+              <Button
+                onClick={() => setLocation("/setlists")}
+                size="lg"
+                variant="outline"
+                data-testid="button-exit-presentation"
+              >
+                Exit Presentation
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
       <div
         className={cn(
-          "absolute bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t p-4 flex items-center justify-between z-10 transition-transform duration-300",
-          showControls ? "translate-y-0" : "translate-y-full"
+          "fixed top-0 left-0 right-0 bg-black/80 backdrop-blur-sm transition-opacity duration-300 z-50",
+          showControls ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       >
-        <Button
-          variant="outline"
-          onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
-          disabled={currentIndex === 0}
-          data-testid="button-previous-song"
-        >
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          Previous
-        </Button>
+        <div className="flex items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-4">
+            <h1 className="text-xl font-semibold" data-testid="text-setlist-name">
+              {setlist.name}
+            </h1>
+            <div className="text-sm text-muted-foreground">
+              {sortedSetlistSongs.length} songs
+            </div>
+          </div>
 
-        {currentSong.arrangement && (
-          <p className="text-sm text-muted-foreground text-center">
-            {currentSong.arrangement}
-          </p>
-        )}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 border-r border-white/20 pr-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setFontSize((prev) => Math.max(prev - 4, 16))}
+                data-testid="button-decrease-font"
+              >
+                <ZoomOut className="h-4 w-4" />
+              </Button>
+              <span className="text-sm w-12 text-center">{fontSize}px</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setFontSize((prev) => Math.min(prev + 4, 64))}
+                data-testid="button-increase-font"
+              >
+                <ZoomIn className="h-4 w-4" />
+              </Button>
+            </div>
 
-        <Button
-          variant="outline"
-          onClick={() =>
-            setCurrentIndex(Math.min(sortedSetlistSongs.length - 1, currentIndex + 1))
-          }
-          disabled={currentIndex === sortedSetlistSongs.length - 1}
-          data-testid="button-next-song"
-        >
-          Next
-          <ChevronRight className="ml-2 h-4 w-4" />
-        </Button>
-      </div>
+            <div className="flex items-center gap-2 border-r border-white/20 pr-4">
+              <Button
+                variant={highlightChords ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setHighlightChords((prev) => !prev)}
+                data-testid="button-toggle-chords"
+              >
+                Chords
+              </Button>
+            </div>
 
-      <div className="absolute top-1/2 left-4 right-4 flex items-center justify-between pointer-events-none">
-        <div className="pointer-events-auto opacity-0 hover:opacity-100 transition-opacity">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-16 w-16 rounded-full bg-background/50 backdrop-blur-sm"
-            onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
-            disabled={currentIndex === 0}
-          >
-            <ChevronLeft className="h-8 w-8" />
-          </Button>
-        </div>
-        <div className="pointer-events-auto opacity-0 hover:opacity-100 transition-opacity">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-16 w-16 rounded-full bg-background/50 backdrop-blur-sm"
-            onClick={() =>
-              setCurrentIndex(Math.min(sortedSetlistSongs.length - 1, currentIndex + 1))
-            }
-            disabled={currentIndex === sortedSetlistSongs.length - 1}
-          >
-            <ChevronRight className="h-8 w-8" />
-          </Button>
+            <div className="flex items-center gap-2 border-r border-white/20 pr-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => containerRef.current?.scrollBy({ top: -window.innerHeight * 0.8, behavior: "smooth" })}
+                data-testid="button-scroll-up"
+              >
+                <ChevronUp className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => containerRef.current?.scrollBy({ top: window.innerHeight * 0.8, behavior: "smooth" })}
+                data-testid="button-scroll-down"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2 border-r border-white/20 pr-4 max-w-xs overflow-x-auto">
+              <span className="text-sm text-muted-foreground whitespace-nowrap mr-2">Jump:</span>
+              {sortedSetlistSongs.map((setlistSong, idx) => (
+                <Button
+                  key={setlistSong.id}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => scrollToSong(setlistSong.id)}
+                  data-testid={`button-jump-to-song-${idx}`}
+                  className="min-w-[2rem]"
+                >
+                  {idx + 1}
+                </Button>
+              ))}
+            </div>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLocation("/setlists")}
+              data-testid="button-close"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>

@@ -19,15 +19,33 @@ interface SongUsageStats {
   }>;
 }
 
+interface MusicianSchedulingStats {
+  id: string;
+  name: string;
+  instrument: string | null;
+  scheduledCount: number;
+  lastScheduled: string | null;
+  setlists: Array<{
+    setlistName: string;
+    date: string;
+  }>;
+}
+
 export default function StatisticsPage() {
   const { data: stats = [], isLoading } = useQuery<SongUsageStats[]>({
     queryKey: ["/api/statistics/song-usage"],
+  });
+
+  const { data: musicianStats = [], isLoading: isLoadingMusicians } = useQuery<MusicianSchedulingStats[]>({
+    queryKey: ["/api/statistics/musician-scheduling"],
   });
 
   const sortedByUsage = [...stats].sort((a, b) => b.usageCount - a.usageCount);
   const sortedByRecent = [...stats]
     .filter(s => s.lastUsed)
     .sort((a, b) => new Date(b.lastUsed!).getTime() - new Date(a.lastUsed!).getTime());
+  
+  const sortedMusiciansByScheduled = [...musicianStats].sort((a, b) => b.scheduledCount - a.scheduledCount);
 
   return (
     <div className="flex flex-col h-full">
@@ -172,6 +190,60 @@ export default function StatisticsPage() {
                       </TableRow>
                     );
                   })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Musician Scheduling</CardTitle>
+            <CardDescription>Musicians sorted by number of times scheduled</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoadingMusicians ? (
+              <div className="space-y-2">
+                {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+              </div>
+            ) : sortedMusiciansByScheduled.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <BarChart3 className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No musician scheduling data yet</p>
+                <p className="text-sm text-muted-foreground">Assign musicians to setlists to track scheduling</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Musician</TableHead>
+                    <TableHead>Instrument</TableHead>
+                    <TableHead className="text-center">Times Scheduled</TableHead>
+                    <TableHead>Last Scheduled</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedMusiciansByScheduled.map((musician) => (
+                    <TableRow key={musician.id} data-testid={`row-musician-scheduling-${musician.id}`}>
+                      <TableCell className="font-medium">{musician.name}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {musician.instrument || "—"}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge>{musician.scheduledCount}</Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {musician.lastScheduled 
+                          ? new Date(musician.lastScheduled).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })
+                          : "Never"
+                        }
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             )}

@@ -362,6 +362,38 @@ export class MemStorage implements IStorage {
       };
     });
   }
+
+  async getMusicianSchedulingStats(): Promise<any[]> {
+    const musicians = await this.getMusicians();
+    const setlists = await this.getSetlists();
+    
+    return musicians.map(musician => {
+      const assignments = Array.from(this.setlistMusicians.values())
+        .filter(sm => sm.musicianId === musician.id);
+      
+      const scheduledCount = assignments.length;
+      const lastScheduled = assignments.length > 0
+        ? setlists
+            .filter(s => assignments.some(a => a.setlistId === s.id))
+            .sort((a, b) => b.date.getTime() - a.date.getTime())[0]?.date
+        : null;
+
+      const setlistsScheduled = assignments.map(assignment => {
+        const setlist = setlists.find(s => s.id === assignment.setlistId);
+        return {
+          setlistName: setlist?.name || '',
+          date: setlist?.date.toISOString() || '',
+        };
+      }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      return {
+        ...musician,
+        scheduledCount,
+        lastScheduled: lastScheduled?.toISOString() || null,
+        setlists: setlistsScheduled,
+      };
+    });
+  }
 }
 
 export const storage = new MemStorage();

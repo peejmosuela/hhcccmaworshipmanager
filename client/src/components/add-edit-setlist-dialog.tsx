@@ -39,7 +39,7 @@ export function AddEditSetlistDialog({ setlist, children, onClose }: AddEditSetl
     defaultValues: {
       name: setlist?.name || "",
       date: setlist?.date ? new Date(setlist.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-      songLeaderId: setlist?.songLeaderId || undefined,
+      songLeaderId: setlist?.songLeaderId || "none",
       notes: setlist?.notes || "",
     },
   });
@@ -49,7 +49,7 @@ export function AddEditSetlistDialog({ setlist, children, onClose }: AddEditSetl
       form.reset({
         name: setlist.name,
         date: new Date(setlist.date).toISOString().split('T')[0],
-        songLeaderId: setlist.songLeaderId || undefined,
+        songLeaderId: setlist.songLeaderId || "none",
         notes: setlist.notes || "",
       });
       setOpen(true);
@@ -61,7 +61,7 @@ export function AddEditSetlistDialog({ setlist, children, onClose }: AddEditSetl
       const payload: InsertSetlist = {
         ...data,
         date: new Date(data.date),
-        songLeaderId: data.songLeaderId || null,
+        songLeaderId: (data.songLeaderId && data.songLeaderId !== "none") ? data.songLeaderId : null,
         notes: data.notes || null,
       };
       return apiRequest("POST", "/api/setlists", payload);
@@ -90,7 +90,7 @@ export function AddEditSetlistDialog({ setlist, children, onClose }: AddEditSetl
       const payload: InsertSetlist = {
         ...data,
         date: new Date(data.date),
-        songLeaderId: data.songLeaderId || null,
+        songLeaderId: (data.songLeaderId && data.songLeaderId !== "none") ? data.songLeaderId : null,
         notes: data.notes || null,
       };
       return apiRequest("PUT", `/api/setlists/${setlist?.id}`, payload);
@@ -114,15 +114,10 @@ export function AddEditSetlistDialog({ setlist, children, onClose }: AddEditSetl
   });
 
   const onSubmit = (data: FormData) => {
-    const payload: FormData = {
-      ...data,
-      songLeaderId: data.songLeaderId === "none" ? undefined : data.songLeaderId,
-    };
-    
     if (setlist) {
-      updateMutation.mutate(payload);
+      updateMutation.mutate(data);
     } else {
-      createMutation.mutate(payload);
+      createMutation.mutate(data);
     }
   };
 

@@ -33,7 +33,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/songs", async (req, res) => {
     try {
-      const validated = insertSongSchema.parse(req.body);
+      // Normalize tags: handle string, array, or missing
+      let tags: string[] = [];
+      if (typeof req.body.tags === "string") {
+        tags = req.body.tags.split(",").map((t: string) => t.trim()).filter(Boolean);
+      } else if (Array.isArray(req.body.tags)) {
+        tags = req.body.tags.map((t: string) => String(t).trim()).filter(Boolean);
+      }
+      
+      const body = {
+        ...req.body,
+        tags,
+      };
+      const validated = insertSongSchema.parse(body);
       const song = await storage.createSong(validated);
       res.status(201).json(song);
     } catch (error) {
@@ -43,7 +55,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/songs/:id", async (req, res) => {
     try {
-      const validated = insertSongSchema.parse(req.body);
+      // Normalize tags: handle string, array, or missing
+      let tags: string[] = [];
+      if (typeof req.body.tags === "string") {
+        tags = req.body.tags.split(",").map((t: string) => t.trim()).filter(Boolean);
+      } else if (Array.isArray(req.body.tags)) {
+        tags = req.body.tags.map((t: string) => String(t).trim()).filter(Boolean);
+      }
+      
+      const body = {
+        ...req.body,
+        tags,
+      };
+      const validated = insertSongSchema.parse(body);
       const song = await storage.updateSong(req.params.id, validated);
       if (!song) {
         return res.status(404).json({ error: "Song not found" });
@@ -319,6 +343,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch statistics" });
+    }
+  });
+
+  app.get("/api/statistics/musician-scheduling", async (_req, res) => {
+    try {
+      const stats = await storage.getMusicianSchedulingStats();
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch musician statistics" });
     }
   });
 

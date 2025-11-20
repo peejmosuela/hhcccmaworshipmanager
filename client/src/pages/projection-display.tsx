@@ -600,7 +600,7 @@ export default function ProjectionDisplayPage() {
                   size="sm"
                   onClick={() => scrollToSong(setlistSong.id)}
                   data-testid={`button-jump-to-song-${idx}`}
-                  className="min-w-[1.5rem] md:min-w-[2rem] h-6 md:h-8 px-1 md:px-2 text-xs md:text-sm"
+                  className="min-w-[1.5rem] md:min-w-[2rem] h-6 md:h-8 px-1 md:px-2 text-xs md:text-sm text-[#ffffff]"
                 >
                   {idx + 1}
                 </Button>

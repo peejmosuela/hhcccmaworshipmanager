@@ -356,11 +356,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "songId is required" });
       }
 
+      // Storage layer will calculate the correct order atomically
       const setlistSong = await storage.addSongToSetlist({
         setlistId: req.params.id,
         songId,
         transposedKey: transposedKey || null,
-        order: 0, // Will be calculated in storage
+        order: 0, // Will be recalculated by storage layer
       });
 
       res.status(201).json(setlistSong);

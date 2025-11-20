@@ -27,7 +27,7 @@ import {
   users,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, asc } from "drizzle-orm";
+import { eq, desc, asc, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User operations for Replit Auth
@@ -260,10 +260,34 @@ export class DbStorage implements IStorage {
   }
 
   async addSongToSetlist(data: InsertSetlistSong): Promise<SetlistSong> {
-    const result = await db.insert(setlistSongs).values(data).returning();
+    // Use transaction with row locking for atomic order calculation
+    const result = await db.transaction(async (tx) => {
+      // Lock the parent setlist row to prevent concurrent inserts (even for empty setlists)
+      await tx.select()
+        .from(setlists)
+        .where(eq(setlists.id, data.setlistId))
+        .for('update');
+      
+      // Calculate next order within the locked transaction (zero-based)
+      const maxOrderResult = await tx.select({ 
+        maxOrder: sql<number>`COALESCE(MAX(${setlistSongs.order}), -1)` 
+      })
+        .from(setlistSongs)
+        .where(eq(setlistSongs.setlistId, data.setlistId));
+      
+      const nextOrder = (maxOrderResult[0]?.maxOrder ?? -1) + 1;
+      
+      // Insert with calculated order
+      const inserted = await tx.insert(setlistSongs).values({
+        ...data,
+        order: nextOrder,
+      }).returning();
+      
+      return inserted[0];
+    });
     
-    // Track song usage
-    if (result[0]) {
+    // Track song usage (outside transaction since it's not critical for consistency)
+    if (result) {
       await this.trackSongUsage({
         songId: data.songId,
         setlistId: data.setlistId,
@@ -271,7 +295,7 @@ export class DbStorage implements IStorage {
       });
     }
     
-    return result[0];
+    return result;
   }
 
   async removeSongFromSetlist(setlistId: string, setlistSongId: string): Promise<boolean> {

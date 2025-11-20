@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, timestamp, index, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, timestamp, index, jsonb, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -83,7 +83,9 @@ export const setlistSongs = pgTable("setlist_songs", {
   songId: varchar("song_id").notNull().references(() => songs.id, { onDelete: "cascade" }),
   order: integer("order").notNull(), // Position in setlist
   transposedKey: text("transposed_key"), // If different from original
-});
+}, (table) => ({
+  uniqueSetlistOrder: unique().on(table.setlistId, table.order),
+}));
 
 // Setlist musicians junction table - musicians assigned to a setlist
 export const setlistMusicians = pgTable("setlist_musicians", {

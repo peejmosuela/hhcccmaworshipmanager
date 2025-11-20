@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Plus, Calendar, User, Music, Edit, Presentation, Copy } from "lucide-react";
+import { Plus, Calendar, User, Music, Edit, Presentation, Copy, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,12 +11,23 @@ import type { Setlist } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function SetlistsPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [setlistToEdit, setSetlistToEdit] = useState<Setlist | null>(null);
   const [selectedSetlist, setSelectedSetlist] = useState<Setlist | null>(null);
+  const [setlistToDelete, setSetlistToDelete] = useState<Setlist | null>(null);
 
   const { data: setlists = [], isLoading } = useQuery<Setlist[]>({
     queryKey: ["/api/setlists"],
@@ -40,6 +51,27 @@ export default function SetlistsPage() {
       toast({
         title: "Error",
         description: "Failed to duplicate setlist",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/setlists/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/setlists"] });
+      toast({
+        title: "Success",
+        description: "Setlist deleted successfully",
+      });
+      setSetlistToDelete(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete setlist",
         variant: "destructive",
       });
     },
@@ -165,6 +197,14 @@ export default function SetlistsPage() {
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setSetlistToDelete(setlist)}
+                      data-testid={`button-delete-setlist-${setlist.id}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -184,6 +224,30 @@ export default function SetlistsPage() {
           }}
         />
       )}
+
+      <AlertDialog open={!!setlistToDelete} onOpenChange={(open) => !open && setSetlistToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Setlist?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{setlistToDelete?.name}"? This will remove the setlist and all its song/musician assignments. The songs and musicians themselves will not be deleted. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-setlist" disabled={deleteMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => setlistToDelete && deleteMutation.mutate(setlistToDelete.id)}
+              disabled={deleteMutation.isPending}
+              data-testid="button-confirm-delete-setlist"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,11 +1,20 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { type Song, type Setlist, type SongLeader, type Musician } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { ChevronUp, ChevronDown, X, ZoomIn, ZoomOut, Music } from "lucide-react";
-import { transposeChord, getSemitoneDifference, parseChordLine } from "@/lib/chordUtils";
+import { ChevronUp, ChevronDown, X, ZoomIn, ZoomOut, Music, Palette, Plus } from "lucide-react";
+import { transposeChord, getSemitoneDifference, parseChordLine, getAllKeys } from "@/lib/chordUtils";
 import { cn } from "@/lib/utils";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface SetlistSongWithSong {
   id: string;
@@ -21,14 +30,21 @@ interface SetlistWithSongs extends Setlist {
   musicians: Array<{ id: string; musicianId: string; musician: Musician }>;
 }
 
+type ColorScheme = "dark" | "light" | "inverted";
+
 export default function ProjectionDisplayPage() {
   const params = useParams();
   const [, setLocation] = useLocation();
   const setlistId = params.id;
-  const [fontSize, setFontSize] = useState(32);
+  const { toast } = useToast();
+  const [fontSize, setFontSize] = useState(16);
   const [highlightChords, setHighlightChords] = useState(true);
   const [showControls, setShowControls] = useState(true);
   const [controlsTimeout, setControlsTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [colorScheme, setColorScheme] = useState<ColorScheme>("dark");
+  const [showAddSong, setShowAddSong] = useState(false);
+  const [selectedSongToAdd, setSelectedSongToAdd] = useState<Song | null>(null);
+  const [transposeKeyForNewSong, setTransposeKeyForNewSong] = useState<string>("");
   const containerRef = useRef<HTMLDivElement>(null);
   const songRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
@@ -37,6 +53,85 @@ export default function ProjectionDisplayPage() {
   });
 
   const sortedSetlistSongs = setlist?.songs ? [...setlist.songs].sort((a, b) => a.order - b.order) : [];
+
+  const { data: allSongs = [] } = useQuery<Song[]>({
+    queryKey: ["/api/songs"],
+  });
+
+  const getColorSchemeClasses = () => {
+    switch (colorScheme) {
+      case "light":
+        return "bg-white text-black";
+      case "inverted":
+        return "bg-gray-100 text-gray-900";
+      default:
+        return "bg-black text-white";
+    }
+  };
+
+  const getChordColorClass = () => {
+    switch (colorScheme) {
+      case "light":
+        return "text-blue-600";
+      case "inverted":
+        return "text-indigo-700";
+      default:
+        return "text-green-400";
+    }
+  };
+
+  const transposeMutation = useMutation({
+    mutationFn: async ({ setlistSongId, newKey }: { setlistSongId: string; newKey: string }) => {
+      return apiRequest("PATCH", `/api/setlists/${setlistId}/songs/${setlistSongId}`, {
+        transposedKey: newKey,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/setlists", setlistId] });
+      toast({
+        title: "Success",
+        description: "Song key updated",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update song key",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const addSongMutation = useMutation({
+    mutationFn: async ({ songId, transposedKey }: { songId: string; transposedKey?: string }) => {
+      const maxOrder = sortedSetlistSongs.length > 0 
+        ? Math.max(...sortedSetlistSongs.map(s => s.order))
+        : 0;
+      
+      return apiRequest("POST", `/api/setlists/${setlistId}/songs`, {
+        songId,
+        order: maxOrder + 1,
+        transposedKey: transposedKey || null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/setlists", setlistId] });
+      toast({
+        title: "Success",
+        description: "Song added to setlist",
+      });
+      setShowAddSong(false);
+      setSelectedSongToAdd(null);
+      setTransposeKeyForNewSong("");
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to add song",
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleMouseMove = () => {
     setShowControls(true);
@@ -109,8 +204,9 @@ export default function ProjectionDisplayPage() {
           <div
             key={idx}
             className={cn(
-              "font-mono whitespace-pre",
-              highlightChords && "text-green-400 font-semibold"
+              "font-mono break-words",
+              highlightChords && getChordColorClass(),
+              highlightChords && "font-semibold"
             )}
             style={{ fontSize: `${fontSize}px` }}
           >
@@ -120,7 +216,7 @@ export default function ProjectionDisplayPage() {
       }
 
       return (
-        <div key={idx} className="whitespace-pre-wrap leading-relaxed" style={{ fontSize: `${fontSize}px` }}>
+        <div key={idx} className="break-words leading-relaxed" style={{ fontSize: `${fontSize}px` }}>
           {line}
         </div>
       );
@@ -156,7 +252,7 @@ export default function ProjectionDisplayPage() {
 
   return (
     <div
-      className="h-screen bg-black text-white overflow-hidden"
+      className={cn("h-screen overflow-hidden", getColorSchemeClasses())}
       onMouseMove={handleMouseMove}
       onTouchStart={handleTouchStart}
       data-testid="projection-display"
@@ -180,22 +276,57 @@ export default function ProjectionDisplayPage() {
               className="min-h-screen flex flex-col justify-center"
               data-testid={`song-section-${index}`}
             >
-              <div className="mb-8 pb-4 border-b border-white/20">
+              <div className="mb-8 pb-4 border-b border-current/20">
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1">
                     <h2 className="text-4xl font-bold mb-2" data-testid={`song-title-${index}`}>
                       {setlistSong.song.title}
                     </h2>
-                    <p className="text-xl text-muted-foreground">
+                    <p className="text-xl opacity-70">
                       {setlistSong.song.artist}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-semibold mb-1">
-                      Key: {setlistSong.transposedKey || setlistSong.song.originalKey}
-                    </div>
-                    <div className="text-muted-foreground">
-                      Song {index + 1} of {sortedSetlistSongs.length}
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="text-sm opacity-70 mb-1">
+                        Song {index + 1} of {sortedSetlistSongs.length}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-semibold">Key:</span>
+                        <Select
+                          value={setlistSong.transposedKey || setlistSong.song.originalKey}
+                          onValueChange={(newKey) =>
+                            transposeMutation.mutate({
+                              setlistSongId: setlistSong.id,
+                              newKey,
+                            })
+                          }
+                        >
+                          <SelectTrigger
+                            className={cn(
+                              "w-24 text-lg font-semibold border-2",
+                              colorScheme === "dark" && "bg-white/10 border-white/30 text-white",
+                              colorScheme === "light" && "bg-black/5 border-black/20 text-black",
+                              colorScheme === "inverted" && "bg-gray-800/20 border-gray-700/40 text-gray-900"
+                            )}
+                            data-testid={`select-transpose-${index}`}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getAllKeys().map((key) => (
+                              <SelectItem key={key} value={key}>
+                                {key}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {setlistSong.transposedKey && setlistSong.transposedKey !== setlistSong.song.originalKey && (
+                        <div className="text-xs opacity-60 mt-1">
+                          Original: {setlistSong.song.originalKey}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -207,20 +338,180 @@ export default function ProjectionDisplayPage() {
             </div>
           ))}
 
+          {showAddSong && (
+            <div className="py-16">
+              <div className="max-w-3xl mx-auto">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-3xl font-bold">Add Song to Setlist</h3>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowAddSong(false);
+                      setSelectedSongToAdd(null);
+                      setTransposeKeyForNewSong("");
+                    }}
+                    data-testid="button-close-add-song"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+                
+                {selectedSongToAdd ? (
+                  <div className="space-y-6">
+                    <div
+                      className={cn(
+                        "p-6 rounded-md border",
+                        colorScheme === "dark" && "bg-white/5 border-white/20",
+                        colorScheme === "light" && "bg-black/5 border-black/20",
+                        colorScheme === "inverted" && "bg-gray-800/10 border-gray-700/30"
+                      )}
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <h4 className="text-2xl font-bold">{selectedSongToAdd.title}</h4>
+                          <p className="text-lg opacity-70">{selectedSongToAdd.artist}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          onClick={() => {
+                            setSelectedSongToAdd(null);
+                            setTransposeKeyForNewSong("");
+                          }}
+                        >
+                          Change Song
+                        </Button>
+                      </div>
+                      
+                      <div className="flex items-center gap-4">
+                        <span className="text-lg font-semibold">Select Key:</span>
+                        <Select 
+                          value={transposeKeyForNewSong} 
+                          onValueChange={setTransposeKeyForNewSong}
+                        >
+                          <SelectTrigger
+                            className={cn(
+                              "w-32 text-lg font-semibold border-2",
+                              colorScheme === "dark" && "bg-white/10 border-white/30 text-white",
+                              colorScheme === "light" && "bg-black/5 border-black/20 text-black",
+                              colorScheme === "inverted" && "bg-gray-800/20 border-gray-700/40 text-gray-900"
+                            )}
+                            data-testid="select-add-song-key"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {getAllKeys().map((key) => (
+                              <SelectItem key={key} value={key}>
+                                {key}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {transposeKeyForNewSong !== selectedSongToAdd.originalKey && (
+                          <span className="text-sm opacity-70">
+                            (Original: {selectedSongToAdd.originalKey})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-3 justify-end">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedSongToAdd(null);
+                          setTransposeKeyForNewSong("");
+                        }}
+                        data-testid="button-cancel-add-song-confirm"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={() => addSongMutation.mutate({ 
+                          songId: selectedSongToAdd.id, 
+                          transposedKey: transposeKeyForNewSong 
+                        })}
+                        disabled={addSongMutation.isPending}
+                        data-testid="button-confirm-add-song"
+                      >
+                        <Plus className="mr-2 h-5 w-5" />
+                        Add to Setlist
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {allSongs
+                      .filter(song => !sortedSetlistSongs.some(ss => ss.songId === song.id))
+                      .map((song) => (
+                        <div
+                          key={song.id}
+                          className={cn(
+                            "p-4 rounded-md border cursor-pointer hover-elevate active-elevate-2",
+                            colorScheme === "dark" && "bg-white/5 border-white/20",
+                            colorScheme === "light" && "bg-black/5 border-black/20",
+                            colorScheme === "inverted" && "bg-gray-800/10 border-gray-700/30"
+                          )}
+                          onClick={() => {
+                            setSelectedSongToAdd(song);
+                            setTransposeKeyForNewSong(song.originalKey);
+                          }}
+                          data-testid={`add-song-${song.id}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-xl font-semibold">{song.title}</div>
+                              <div className="text-sm opacity-70">{song.artist}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-lg font-semibold">Key: {song.originalKey}</div>
+                              {song.tags && song.tags.length > 0 && (
+                                <div className="text-xs opacity-60 mt-1">
+                                  {song.tags.join(", ")}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    {allSongs.filter(song => !sortedSetlistSongs.some(ss => ss.songId === song.id)).length === 0 && (
+                      <div className="text-center py-8 opacity-60">
+                        All songs are already in this setlist
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="h-screen flex items-center justify-center">
             <div className="text-center">
               <h2 className="text-5xl font-bold mb-4">End of Setlist</h2>
-              <p className="text-xl text-muted-foreground mb-8">
+              <p className="text-xl opacity-70 mb-8">
                 {sortedSetlistSongs.length} songs performed
               </p>
-              <Button
-                onClick={() => setLocation("/setlists")}
-                size="lg"
-                variant="outline"
-                data-testid="button-exit-presentation"
-              >
-                Exit Presentation
-              </Button>
+              <div className="space-y-4">
+                {!showAddSong && (
+                  <Button
+                    onClick={() => setShowAddSong(true)}
+                    size="lg"
+                    variant="default"
+                    data-testid="button-add-song-bottom"
+                  >
+                    <Plus className="mr-2 h-5 w-5" />
+                    Add Another Song
+                  </Button>
+                )}
+                <Button
+                  onClick={() => setLocation("/setlists")}
+                  size="lg"
+                  variant="outline"
+                  data-testid="button-exit-presentation"
+                >
+                  Exit Presentation
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -307,6 +598,34 @@ export default function ProjectionDisplayPage() {
                   {idx + 1}
                 </Button>
               ))}
+            </div>
+
+            <div className="flex items-center gap-2 border-r border-white/20 pr-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  const schemes: ColorScheme[] = ["dark", "light", "inverted"];
+                  const currentIndex = schemes.indexOf(colorScheme);
+                  setColorScheme(schemes[(currentIndex + 1) % schemes.length]);
+                }}
+                title="Toggle color scheme"
+                data-testid="button-color-scheme"
+              >
+                <Palette className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2 border-r border-white/20 pr-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAddSong(!showAddSong)}
+                data-testid="button-add-song"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Song
+              </Button>
             </div>
 
             <Button

@@ -12,6 +12,7 @@ import {
   Music as MusicIcon, Users, Presentation 
 } from "lucide-react";
 import { format } from "date-fns";
+import { getAllKeys } from "@/lib/chordUtils";
 import {
   Select,
   SelectContent,
@@ -97,6 +98,7 @@ export default function SetlistDetailPage() {
   const { toast } = useToast();
   const setlistId = params.id!;
   const [selectedSongId, setSelectedSongId] = useState("");
+  const [selectedKey, setSelectedKey] = useState<string>("");
 
   const { data: setlist, isLoading } = useQuery<SetlistWithSongs>({
     queryKey: ["/api/setlists", setlistId],
@@ -118,12 +120,16 @@ export default function SetlistDetailPage() {
   );
 
   const addSongMutation = useMutation({
-    mutationFn: async (songId: string) => {
-      return apiRequest("POST", `/api/setlists/${setlistId}/songs`, { songId });
+    mutationFn: async ({ songId, transposedKey }: { songId: string; transposedKey?: string }) => {
+      return apiRequest("POST", `/api/setlists/${setlistId}/songs`, { 
+        songId, 
+        transposedKey: transposedKey || null 
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/setlists", setlistId] });
       setSelectedSongId("");
+      setSelectedKey("");
       toast({ title: "Success", description: "Song added to setlist" });
     },
   });
@@ -255,7 +261,16 @@ export default function SetlistDetailPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex gap-2">
-                  <Select value={selectedSongId} onValueChange={setSelectedSongId}>
+                  <Select 
+                    value={selectedSongId} 
+                    onValueChange={(songId) => {
+                      setSelectedSongId(songId);
+                      const song = availableSongs.find(s => s.id === songId);
+                      if (song) {
+                        setSelectedKey(song.originalKey);
+                      }
+                    }}
+                  >
                     <SelectTrigger className="flex-1" data-testid="select-song">
                       <SelectValue placeholder="Select a song to add" />
                     </SelectTrigger>
@@ -267,8 +282,27 @@ export default function SetlistDetailPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  
+                  {selectedSongId && (
+                    <Select value={selectedKey} onValueChange={setSelectedKey}>
+                      <SelectTrigger className="w-32" data-testid="select-transpose-key">
+                        <SelectValue placeholder="Key" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getAllKeys().map((key) => (
+                          <SelectItem key={key} value={key}>
+                            {key}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  
                   <Button
-                    onClick={() => selectedSongId && addSongMutation.mutate(selectedSongId)}
+                    onClick={() => selectedSongId && addSongMutation.mutate({ 
+                      songId: selectedSongId,
+                      transposedKey: selectedKey 
+                    })}
                     disabled={!selectedSongId || addSongMutation.isPending}
                     data-testid="button-add-song"
                   >

@@ -338,6 +338,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/setlists/:setlistId/songs/:setlistSongId", async (req, res) => {
+    try {
+      const { transposedKey } = req.body;
+      if (transposedKey === undefined) {
+        return res.status(400).json({ error: "transposedKey is required" });
+      }
+      const updated = await storage.updateSetlistSongKey(
+        req.params.setlistSongId,
+        transposedKey
+      );
+      if (!updated) {
+        return res.status(404).json({ error: "Setlist song not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update setlist song" });
+    }
+  });
+
   app.delete("/api/setlists/:setlistId/songs/:songId", async (req, res) => {
     try {
       const deleted = await storage.removeSongFromSetlist(

@@ -509,7 +509,6 @@ export default function ProjectionDisplayPage() {
           </div>
         </div>
       </div>
-
       <div
         className={cn(
           "fixed top-0 left-0 right-0 bg-black/80 backdrop-blur-sm transition-opacity duration-300 z-50",
@@ -518,7 +517,7 @@ export default function ProjectionDisplayPage() {
       >
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between px-3 md:px-6 py-2 md:py-4 gap-2">
           <div className="flex items-center gap-2 md:gap-4">
-            <h1 className="text-sm md:text-xl font-semibold truncate max-w-[150px] md:max-w-none" data-testid="text-setlist-name">
+            <h1 className="text-sm md:text-xl font-semibold truncate max-w-[150px] md:max-w-none text-[#ffffff]" data-testid="text-setlist-name">
               {setlist.name}
             </h1>
             <div className="text-xs md:text-sm text-muted-foreground">

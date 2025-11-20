@@ -532,7 +532,7 @@ export default function ProjectionDisplayPage() {
                 size="icon"
                 onClick={() => setFontSize((prev) => Math.max(prev - 4, 8))}
                 data-testid="button-decrease-font"
-                className="h-7 w-7 md:h-9 md:w-9"
+                className="h-7 w-7 md:h-9 md:w-9 text-[#ffffff]"
               >
                 <ZoomOut className="h-3 w-3 md:h-4 md:w-4" />
               </Button>
@@ -558,7 +558,7 @@ export default function ProjectionDisplayPage() {
               >
                 Chords
               </Button>
-              <label className="flex items-center gap-1 cursor-pointer" title="Chord color">
+              <label className="flex items-center gap-1 cursor-pointer text-[#ffffff]" title="Chord color">
                 <span className="text-xs hidden md:inline">Color:</span>
                 <input
                   type="color"

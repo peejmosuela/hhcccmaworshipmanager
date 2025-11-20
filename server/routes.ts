@@ -7,7 +7,7 @@ import {
   insertSongLeaderSchema,
   insertSetlistSchema,
 } from "@shared/schema";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup Replit Auth (must be first)

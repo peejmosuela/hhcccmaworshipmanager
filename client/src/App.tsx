@@ -14,7 +14,7 @@ import MusiciansPage from "@/pages/musicians";
 import StatisticsPage from "@/pages/statistics";
 import ProjectionDisplayPage from "@/pages/projection-display";
 import CalendarPage from "@/pages/calendar";
-import Landing from ".@/pages/Landing.tsx";
+import Landing from ".@/pages/LoginPage.tsx";
 import NotFound from "@/pages/not-found";
 
 function Router() {

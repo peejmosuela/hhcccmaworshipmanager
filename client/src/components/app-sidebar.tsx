@@ -50,7 +50,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-lg font-medium mb-2">
+          <SidebarGroupLabel className="text-lg font-extrabold mb-2">
             Worship Manager
           </SidebarGroupLabel>
           <SidebarGroupContent>

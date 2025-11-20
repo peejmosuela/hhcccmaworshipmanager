@@ -41,7 +41,7 @@ export default function MusiciansPage() {
         <Tabs defaultValue="band" className="w-full">
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="band" data-testid="tab-band-musicians">Band</TabsTrigger>
-            <TabsTrigger value="leaders" data-testid="tab-leaders">Leaders</TabsTrigger>
+            <TabsTrigger value="leaders" data-testid="tab-leaders">Worship Leader</TabsTrigger>
             <TabsTrigger value="media" data-testid="tab-media">Media</TabsTrigger>
             <TabsTrigger value="singers" data-testid="tab-singers">Singers</TabsTrigger>
             <TabsTrigger value="dancers" data-testid="tab-dancers">Dancers</TabsTrigger>

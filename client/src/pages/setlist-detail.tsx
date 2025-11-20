@@ -375,7 +375,7 @@ export default function SetlistDetailPage() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <User className="h-5 w-5" />
-                    Song Leader
+                    Worship Leader
                   </CardTitle>
                 </CardHeader>
                 <CardContent>

@@ -12,6 +12,14 @@ import { insertSongSchema, type Song, type InsertSong } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { getAllKeys } from "@/lib/chordUtils";
 import { useState, useEffect } from "react";
+import { z } from "zod";
+
+// Form schema that accepts tags as string (will convert to array on submit)
+const songFormSchema = insertSongSchema.extend({
+  tags: z.union([z.string(), z.array(z.string())]).optional(),
+});
+
+type SongFormData = z.infer<typeof songFormSchema>;
 
 interface AddEditSongDialogProps {
   song?: Song | null;
@@ -23,14 +31,14 @@ export function AddEditSongDialog({ song, children, onClose }: AddEditSongDialog
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
-  const form = useForm<InsertSong>({
-    resolver: zodResolver(insertSongSchema),
+  const form = useForm<SongFormData>({
+    resolver: zodResolver(songFormSchema),
     defaultValues: {
       title: song?.title || "",
       artist: song?.artist || "",
       originalKey: song?.originalKey || "C",
       lyrics: song?.lyrics || "",
-      tags: song?.tags || [],
+      tags: song?.tags?.join(", ") || "",
     },
   });
 
@@ -41,7 +49,7 @@ export function AddEditSongDialog({ song, children, onClose }: AddEditSongDialog
         artist: song.artist || "",
         originalKey: song.originalKey,
         lyrics: song.lyrics,
-        tags: song.tags || [],
+        tags: song.tags?.join(", ") || "",
       });
       setOpen(true);
     }
@@ -92,14 +100,16 @@ export function AddEditSongDialog({ song, children, onClose }: AddEditSongDialog
     },
   });
 
-  const onSubmit = (data: InsertSong) => {
-    const tagsInput = form.watch("tags");
-    const tagsArray = typeof tagsInput === "string" 
-      ? tagsInput.split(",").map(t => t.trim()).filter(Boolean)
-      : tagsInput || [];
+  const onSubmit = (data: SongFormData) => {
+    const tagsArray = typeof data.tags === "string" 
+      ? data.tags.split(",").map(t => t.trim()).filter(Boolean)
+      : data.tags || [];
 
-    const formData = {
-      ...data,
+    const formData: InsertSong = {
+      title: data.title,
+      artist: data.artist,
+      originalKey: data.originalKey,
+      lyrics: data.lyrics,
       tags: tagsArray,
     };
 
@@ -200,8 +210,8 @@ export function AddEditSongDialog({ song, children, onClose }: AddEditSongDialog
                     <FormControl>
                       <Input 
                         placeholder="worship, praise, upbeat (comma separated)" 
-                        {...field}
-                        value={Array.isArray(field.value) ? field.value.join(", ") : field.value || ""}
+                        value={Array.isArray(field.value) ? field.value.join(", ") : (field.value || "")}
+                        onChange={(e) => field.onChange(e.target.value)}
                         data-testid="input-song-tags"
                       />
                     </FormControl>

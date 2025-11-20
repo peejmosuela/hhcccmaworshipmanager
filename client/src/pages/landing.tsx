@@ -11,9 +11,7 @@ export default function Landing() {
           </div>
         </div>
         
-        <h1 className="text-5xl font-bold mb-4">
-          Worship Manager
-        </h1>
+        <h1 className="text-5xl font-bold mb-4">HHCC CMA Worship Manager</h1>
         
         <p className="text-xl text-muted-foreground mb-8">
           Organize worship songs, build setlists, manage musicians, and create beautiful projection displays for your church services.

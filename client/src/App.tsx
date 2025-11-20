@@ -49,15 +49,11 @@ function AppContent() {
     "--sidebar-width-icon": "3rem",
   };
 
-  // Development bypass: skip auth in development mode
-  const isDevelopment = import.meta.env.DEV;
-  const shouldShowApp = isDevelopment || isAuthenticated;
-
   if (isLoading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
   }
 
-  if (!shouldShowApp) {
+  if (!isAuthenticated) {
     return <Landing />;
   }
 

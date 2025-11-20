@@ -18,10 +18,14 @@ import NotFound from "@/pages/not-found";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
+  
+  // Development bypass: skip auth in development mode
+  const isDevelopment = import.meta.env.DEV;
+  const shouldShowApp = isDevelopment || isAuthenticated;
 
   return (
     <Switch>
-      {isLoading || !isAuthenticated ? (
+      {isLoading || !shouldShowApp ? (
         <Route path="/" component={Landing} />
       ) : (
         <>
@@ -57,7 +61,11 @@ function AppContent() {
     "--sidebar-width-icon": "3rem",
   };
 
-  if (isLoading || !isAuthenticated) {
+  // Development bypass: skip auth in development mode
+  const isDevelopment = import.meta.env.DEV;
+  const shouldShowApp = isDevelopment || isAuthenticated;
+
+  if (isLoading || !shouldShowApp) {
     return <Router />;
   }
 

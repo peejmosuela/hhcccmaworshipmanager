@@ -52,16 +52,16 @@ function AppContent() {
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>;
+    
   }
-
-  if (!isAuthenticated) {
+if (!isAuthenticated) {
   return (
-    <div style={{ maxWidth: 400, margin: "100px auto", padding: 40, border: "1px solid #ccc", borderRadius: 8, textAlign: "center" }}>
-      <h2>Worship Manager</h2>
+    <div style={{ padding: "2rem", textAlign: "center", marginTop: "5rem" }}>
+      <h1>HHCCMA Worship Manager</h1>
       <p>Please log in or register to continue</p>
-      <div style={{ marginTop: 20 }}>
-        <a href="/login" style={{ margin: 10, color: "#007bff" }}>Login</a>
-        <a href="/register" style={{ margin: 10, color: "#007bff" }}>Register</a>
+      <div style={{ marginTop: "2rem" }}>
+        <a href="/login" style={{ margin: "0 1rem", fontSize: "1.2rem", color: "#007bff" }}>Login</a>
+        <a href="/register" style={{ margin: "0 1rem", fontSize: "1.2rem", color: "#007bff" }}>Register</a>
       </div>
     </div>
   );

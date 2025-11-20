@@ -217,7 +217,7 @@ export default function StatisticsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Musician</TableHead>
-                    <TableHead>Instrument</TableHead>
+                    <TableHead>Assignment</TableHead>
                     <TableHead className="text-center">Times Scheduled</TableHead>
                     <TableHead>Last Scheduled</TableHead>
                   </TableRow>

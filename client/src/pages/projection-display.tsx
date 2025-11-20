@@ -536,7 +536,7 @@ export default function ProjectionDisplayPage() {
               >
                 <ZoomOut className="h-3 w-3 md:h-4 md:w-4" />
               </Button>
-              <span className="text-xs md:text-sm w-8 md:w-12 text-center">{fontSize}px</span>
+              <span className="text-xs md:text-sm w-8 md:w-12 text-center text-[#ffffff]">{fontSize}px</span>
               <Button
                 variant="ghost"
                 size="icon"

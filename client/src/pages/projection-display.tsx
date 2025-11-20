@@ -197,9 +197,11 @@ export default function ProjectionDisplayPage() {
         return (
           <div
             key={idx}
-            className="font-mono break-words"
+            className="font-mono"
             style={{ 
               fontSize: `${fontSize}px`,
+              whiteSpace: 'pre',
+              overflowX: 'auto',
               ...(highlightChords ? { ...getChordColorStyle(), fontWeight: 600 } : {})
             }}
           >
@@ -209,7 +211,15 @@ export default function ProjectionDisplayPage() {
       }
 
       return (
-        <div key={idx} className="break-words leading-relaxed" style={{ fontSize: `${fontSize}px` }}>
+        <div 
+          key={idx} 
+          className="font-mono" 
+          style={{ 
+            fontSize: `${fontSize}px`,
+            whiteSpace: 'pre',
+            overflowX: 'auto'
+          }}
+        >
           {line}
         </div>
       );

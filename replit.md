@@ -10,6 +10,23 @@ Worship Manager is a comprehensive church worship song and setlist management ap
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+### November 20, 2025
+- **Dashboard Rearrangement**: Reordered dashboard cards to show UPCOMING SERVICES first (left column), followed by Recent Setlists (right column)
+- **Calendar View**: Added new calendar page (`/calendar`) that displays setlists in a monthly calendar format
+  - Shows setlists on their scheduled dates with song leader and musician count
+  - Includes month navigation (Previous, Next, Today buttons)
+  - Displays "Upcoming Services with Team Assignments" list below calendar showing consolidated people assignments
+  - Added navigation link in sidebar between "Setlists" and "Team"
+- **Backend API**: Added `GET /api/setlist-musicians/all` endpoint to efficiently fetch all setlist musician assignments
+  - Enables calendar view to load all data without N+1 queries
+  - Client-side joins data to create consolidated team view
+- **Searchable Song Selection in Presentation View**: Replaced full song list with searchable Command/Popover interface when adding songs during presentation
+  - Fixed concurrency issues with UNIQUE constraint on (setlistId, order)
+  - Backend now handles atomic order calculation
+  - Removed incompatible transaction code (Neon HTTP driver doesn't support transactions)
+
 ## System Architecture
 
 ### Frontend Architecture

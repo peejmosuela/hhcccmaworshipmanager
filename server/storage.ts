@@ -77,6 +77,7 @@ export interface IStorage {
 
   // Setlist Musicians
   getSetlistMusicians(setlistId: string): Promise<SetlistMusician[]>;
+  getAllSetlistMusicians(): Promise<SetlistMusician[]>;
   setSetlistMusicians(setlistId: string, musicianIds: string[]): Promise<void>;
   setSetlistMusiciansWithPositions(setlistId: string, assignments: Array<{ musicianId: string; positionId?: string }>): Promise<void>;
 
@@ -319,6 +320,10 @@ export class DbStorage implements IStorage {
   // Setlist Musicians
   async getSetlistMusicians(setlistId: string): Promise<SetlistMusician[]> {
     return await db.select().from(setlistMusicians).where(eq(setlistMusicians.setlistId, setlistId));
+  }
+
+  async getAllSetlistMusicians(): Promise<SetlistMusician[]> {
+    return await db.select().from(setlistMusicians);
   }
 
   async setSetlistMusicians(setlistId: string, musicianIds: string[]): Promise<void> {

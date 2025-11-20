@@ -420,6 +420,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Setlist Musicians
+  app.get("/api/setlist-musicians/all", async (_req, res) => {
+    try {
+      const allSetlistMusicians = await storage.getAllSetlistMusicians();
+      res.json(allSetlistMusicians);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch setlist musicians" });
+    }
+  });
+
   app.put("/api/setlists/:id/musicians", async (req, res) => {
     try {
       const { musicianIds, assignments } = req.body;

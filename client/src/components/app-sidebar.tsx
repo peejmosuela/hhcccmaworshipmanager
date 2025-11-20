@@ -1,4 +1,4 @@
-import { Home, Music, ListMusic, Users, BarChart3, LogOut } from "lucide-react";
+import { Home, Music, ListMusic, Users, BarChart3, CalendarDays, LogOut } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -29,6 +29,11 @@ const menuItems = [
     title: "Setlists",
     url: "/setlists",
     icon: ListMusic,
+  },
+  {
+    title: "Calendar",
+    url: "/calendar",
+    icon: CalendarDays,
   },
   {
     title: "Team",

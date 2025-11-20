@@ -31,8 +31,9 @@ export function AddToSetlistDialog({ song, open, onClose }: AddToSetlistDialogPr
         songId: song.id,
       });
     },
-    onSuccess: () => {
+    onSuccess: (_, setlistId) => {
       queryClient.invalidateQueries({ queryKey: ["/api/setlists"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/setlists", setlistId] });
       toast({
         title: "Success",
         description: `"${song.title}" added to setlist`,

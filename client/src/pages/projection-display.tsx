@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { useState, useEffect, useCallback } from "react";
-import { type Song, type SetlistSong, type Setlist } from "@shared/schema";
+import { type Song, type Setlist, type SongLeader, type Musician } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, X, Settings2, Music } from "lucide-react";
 import { transposeChord, getAllKeys, parseChordLine } from "@/lib/chordUtils";
@@ -15,6 +15,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+interface SetlistSongWithSong {
+  id: string;
+  songId: string;
+  order: number;
+  transposedKey: string | null;
+  song: Song;
+}
+
+interface SetlistWithSongs extends Setlist {
+  songs: SetlistSongWithSong[];
+  songLeader?: SongLeader;
+  musicians: Array<{ id: string; musicianId: string; musician: Musician }>;
+}
+
 export default function ProjectionDisplayPage() {
   const params = useParams();
   const [, setLocation] = useLocation();
@@ -25,23 +39,13 @@ export default function ProjectionDisplayPage() {
   const [showControls, setShowControls] = useState(false);
   const [controlsTimeout, setControlsTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  const { data: setlist, isLoading: setlistLoading } = useQuery<Setlist>({
+  const { data: setlist, isLoading } = useQuery<SetlistWithSongs>({
     queryKey: ["/api/setlists", setlistId],
   });
 
-  const { data: setlistSongs = [], isLoading: songsLoading } = useQuery<SetlistSong[]>({
-    queryKey: ["/api/setlists", setlistId, "songs"],
-  });
-
-  const { data: allSongs = [], isLoading: allSongsLoading } = useQuery<Song[]>({
-    queryKey: ["/api/songs"],
-  });
-
-  const sortedSetlistSongs = [...setlistSongs].sort((a, b) => a.order - b.order);
+  const sortedSetlistSongs = setlist?.songs ? [...setlist.songs].sort((a, b) => a.order - b.order) : [];
   const currentSetlistSong = sortedSetlistSongs[currentIndex];
-  const currentSong = allSongs.find((s) => s.id === currentSetlistSong?.songId);
-
-  const isLoading = setlistLoading || songsLoading || allSongsLoading;
+  const currentSong = currentSetlistSong?.song;
 
   const handleMouseMove = () => {
     setShowControls(true);

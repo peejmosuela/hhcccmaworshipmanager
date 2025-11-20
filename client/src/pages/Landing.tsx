@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export default function Landing() {
+export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isRegister, setIsRegister] = useState(false);

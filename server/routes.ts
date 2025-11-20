@@ -238,7 +238,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/setlists", async (req, res) => {
     try {
-      const validated = insertSetlistSchema.parse(req.body);
+      const body = {
+        ...req.body,
+        date: req.body.date ? new Date(req.body.date) : new Date(),
+        isTemplate: req.body.isTemplate ?? 0,
+      };
+      const validated = insertSetlistSchema.parse(body);
       const setlist = await storage.createSetlist(validated);
       res.status(201).json(setlist);
     } catch (error) {
@@ -248,7 +253,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/setlists/:id", async (req, res) => {
     try {
-      const validated = insertSetlistSchema.parse(req.body);
+      const body = {
+        ...req.body,
+        date: req.body.date ? new Date(req.body.date) : new Date(),
+        isTemplate: req.body.isTemplate ?? 0,
+      };
+      const validated = insertSetlistSchema.parse(body);
       const setlist = await storage.updateSetlist(req.params.id, validated);
       if (!setlist) {
         return res.status(404).json({ error: "Setlist not found" });

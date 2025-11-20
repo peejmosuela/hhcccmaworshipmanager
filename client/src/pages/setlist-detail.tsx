@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { 
   ArrowLeft, Plus, Trash2, GripVertical, Calendar, User, 
-  Music as MusicIcon, Users, Presentation 
+  Music as MusicIcon, Users, Presentation, Check, ChevronsUpDown
 } from "lucide-react";
 import { format } from "date-fns";
 import { getAllKeys } from "@/lib/chordUtils";
@@ -20,6 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 import {
   DndContext,
   closestCenter,
@@ -103,6 +106,7 @@ export default function SetlistDetailPage() {
   const setlistId = params.id!;
   const [selectedSongId, setSelectedSongId] = useState("");
   const [selectedKey, setSelectedKey] = useState<string>("");
+  const [songSelectOpen, setSongSelectOpen] = useState(false);
 
   const { data: setlist, isLoading } = useQuery<SetlistWithSongs>({
     queryKey: ["/api/setlists", setlistId],
@@ -258,6 +262,96 @@ export default function SetlistDetailPage() {
     },
   });
 
+  const updateBackupSlotsMutation = useMutation({
+    mutationFn: async (backupMusicianIds: string[]) => {
+      const response = await fetch(`/api/setlists/${setlistId}`);
+      if (!response.ok) throw new Error("Failed to fetch setlist");
+      const currentSetlist = await response.json() as SetlistWithSongs;
+      const currentAssignments = currentSetlist.musicians || [];
+
+      // Keep position-based assignments and non-backup team assignments
+      const nonBackupAssignments = currentAssignments.filter(m => {
+        if (m.positionId) return true; // Keep all position-based
+        const musician = allMusicians.find(mus => mus.id === m.musicianId);
+        return musician && musician.teamCategory !== "Backup Singers";
+      });
+
+      // Add backup singer assignments (without position)
+      const backupAssignments = backupMusicianIds.map(musicianId => ({ musicianId, positionId: undefined as string | undefined }));
+
+      const newAssignments = [...nonBackupAssignments, ...backupAssignments].map(m => {
+        const result: { musicianId: string; positionId?: string } = { musicianId: m.musicianId };
+        if (m.positionId) result.positionId = m.positionId;
+        return result;
+      });
+
+      return apiRequest("PUT", `/api/setlists/${setlistId}/musicians`, { assignments: newAssignments });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/setlists", setlistId] });
+    },
+  });
+
+  const updateMediaSlotsMutation = useMutation({
+    mutationFn: async (mediaMusicianIds: string[]) => {
+      const response = await fetch(`/api/setlists/${setlistId}`);
+      if (!response.ok) throw new Error("Failed to fetch setlist");
+      const currentSetlist = await response.json() as SetlistWithSongs;
+      const currentAssignments = currentSetlist.musicians || [];
+
+      // Keep position-based assignments and non-media team assignments
+      const nonMediaAssignments = currentAssignments.filter(m => {
+        if (m.positionId) return true; // Keep all position-based
+        const musician = allMusicians.find(mus => mus.id === m.musicianId);
+        return musician && musician.teamCategory !== "Media";
+      });
+
+      // Add media assignments (without position)
+      const mediaAssignments = mediaMusicianIds.map(musicianId => ({ musicianId, positionId: undefined as string | undefined }));
+
+      const newAssignments = [...nonMediaAssignments, ...mediaAssignments].map(m => {
+        const result: { musicianId: string; positionId?: string } = { musicianId: m.musicianId };
+        if (m.positionId) result.positionId = m.positionId;
+        return result;
+      });
+
+      return apiRequest("PUT", `/api/setlists/${setlistId}/musicians`, { assignments: newAssignments });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/setlists", setlistId] });
+    },
+  });
+
+  const updateDancerSlotsMutation = useMutation({
+    mutationFn: async (dancerMusicianIds: string[]) => {
+      const response = await fetch(`/api/setlists/${setlistId}`);
+      if (!response.ok) throw new Error("Failed to fetch setlist");
+      const currentSetlist = await response.json() as SetlistWithSongs;
+      const currentAssignments = currentSetlist.musicians || [];
+
+      // Keep position-based assignments and non-dancer team assignments
+      const nonDancerAssignments = currentAssignments.filter(m => {
+        if (m.positionId) return true; // Keep all position-based
+        const musician = allMusicians.find(mus => mus.id === m.musicianId);
+        return musician && musician.teamCategory !== "Dancers";
+      });
+
+      // Add dancer assignments (without position)
+      const dancerAssignments = dancerMusicianIds.map(musicianId => ({ musicianId, positionId: undefined as string | undefined }));
+
+      const newAssignments = [...nonDancerAssignments, ...dancerAssignments].map(m => {
+        const result: { musicianId: string; positionId?: string } = { musicianId: m.musicianId };
+        if (m.positionId) result.positionId = m.positionId;
+        return result;
+      });
+
+      return apiRequest("PUT", `/api/setlists/${setlistId}/musicians`, { assignments: newAssignments });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/setlists", setlistId] });
+    },
+  });
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || !setlist) return;
@@ -375,27 +469,55 @@ export default function SetlistDetailPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex gap-2">
-                  <Select 
-                    value={selectedSongId} 
-                    onValueChange={(songId) => {
-                      setSelectedSongId(songId);
-                      const song = availableSongs.find(s => s.id === songId);
-                      if (song) {
-                        setSelectedKey(song.originalKey);
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="flex-1" data-testid="select-song">
-                      <SelectValue placeholder="Select a song to add" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableSongs.map((song) => (
-                        <SelectItem key={song.id} value={song.id} data-testid={`option-song-${song.id}`}>
-                          {song.title} - {song.artist}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={songSelectOpen} onOpenChange={setSongSelectOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={songSelectOpen}
+                        className="flex-1 justify-between"
+                        data-testid="select-song"
+                      >
+                        {selectedSongId
+                          ? (() => {
+                              const song = availableSongs.find((s) => s.id === selectedSongId);
+                              return song ? `${song.title} - ${song.artist}` : "Select a song to add";
+                            })()
+                          : "Select a song to add"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[500px] p-0">
+                      <Command>
+                        <CommandInput placeholder="Search songs..." />
+                        <CommandList>
+                          <CommandEmpty>No songs found.</CommandEmpty>
+                          <CommandGroup>
+                            {availableSongs.map((song) => (
+                              <CommandItem
+                                key={song.id}
+                                value={`${song.title} - ${song.artist}`}
+                                onSelect={() => {
+                                  setSelectedSongId(song.id);
+                                  setSelectedKey(song.originalKey);
+                                  setSongSelectOpen(false);
+                                }}
+                                data-testid={`option-song-${song.id}`}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedSongId === song.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {song.title} - {song.artist}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   
                   {selectedSongId && (
                     <Select value={selectedKey} onValueChange={setSelectedKey}>
@@ -543,29 +665,47 @@ export default function SetlistDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {backupSingers.map((singer) => (
-                    <label
-                      key={singer.id}
-                      className="flex items-center gap-3 cursor-pointer p-2 rounded hover-elevate"
-                      data-testid={`checkbox-backup-singer-${singer.id}`}
-                    >
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4"
-                        checked={isTeamMemberAssigned(singer.id)}
-                        onChange={(e) => {
-                          toggleTeamMemberMutation.mutate({
-                            musicianId: singer.id,
-                            isAssigned: e.target.checked
-                          });
-                        }}
-                      />
-                      <div className="flex-1">
-                        <div className="font-medium">{singer.name}</div>
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5, 6].map((slotNumber) => {
+                    const assignedBackups = (setlist?.musicians || [])
+                      .filter(m => !m.positionId && backupSingers.find(s => s.id === m.musicianId))
+                      .map(m => m.musicianId);
+                    const currentAssignment = assignedBackups[slotNumber - 1];
+                    
+                    return (
+                      <div key={slotNumber} className="space-y-1">
+                        <label className="text-sm font-medium">Backup {slotNumber}</label>
+                        <Select
+                          value={currentAssignment || "none"}
+                          onValueChange={(musicianId) => {
+                            const newAssignments = [...assignedBackups];
+                            if (musicianId === "none") {
+                              newAssignments.splice(slotNumber - 1, 1);
+                            } else {
+                              newAssignments[slotNumber - 1] = musicianId;
+                            }
+                            updateBackupSlotsMutation.mutate(newAssignments.filter(Boolean));
+                          }}
+                        >
+                          <SelectTrigger data-testid={`select-backup-${slotNumber}`}>
+                            <SelectValue placeholder="Unassigned" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Unassigned</SelectItem>
+                            {backupSingers.map((singer) => (
+                              <SelectItem 
+                                key={singer.id} 
+                                value={singer.id}
+                                disabled={assignedBackups.includes(singer.id) && assignedBackups[slotNumber - 1] !== singer.id}
+                              >
+                                {singer.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                    </label>
-                  ))}
+                    );
+                  })}
                   {backupSingers.length === 0 && (
                     <div className="text-center py-6 text-muted-foreground text-sm">
                       <Link href="/musicians">
@@ -587,29 +727,47 @@ export default function SetlistDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {mediaTeam.map((member) => (
-                    <label
-                      key={member.id}
-                      className="flex items-center gap-3 cursor-pointer p-2 rounded hover-elevate"
-                      data-testid={`checkbox-media-${member.id}`}
-                    >
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4"
-                        checked={isTeamMemberAssigned(member.id)}
-                        onChange={(e) => {
-                          toggleTeamMemberMutation.mutate({
-                            musicianId: member.id,
-                            isAssigned: e.target.checked
-                          });
-                        }}
-                      />
-                      <div className="flex-1">
-                        <div className="font-medium">{member.name}</div>
+                <div className="space-y-3">
+                  {[1, 2, 3, 4].map((slotNumber) => {
+                    const assignedMedia = (setlist?.musicians || [])
+                      .filter(m => !m.positionId && mediaTeam.find(mt => mt.id === m.musicianId))
+                      .map(m => m.musicianId);
+                    const currentAssignment = assignedMedia[slotNumber - 1];
+                    
+                    return (
+                      <div key={slotNumber} className="space-y-1">
+                        <label className="text-sm font-medium">Media {slotNumber}</label>
+                        <Select
+                          value={currentAssignment || "none"}
+                          onValueChange={(musicianId) => {
+                            const newAssignments = [...assignedMedia];
+                            if (musicianId === "none") {
+                              newAssignments.splice(slotNumber - 1, 1);
+                            } else {
+                              newAssignments[slotNumber - 1] = musicianId;
+                            }
+                            updateMediaSlotsMutation.mutate(newAssignments.filter(Boolean));
+                          }}
+                        >
+                          <SelectTrigger data-testid={`select-media-${slotNumber}`}>
+                            <SelectValue placeholder="Unassigned" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Unassigned</SelectItem>
+                            {mediaTeam.map((member) => (
+                              <SelectItem 
+                                key={member.id} 
+                                value={member.id}
+                                disabled={assignedMedia.includes(member.id) && assignedMedia[slotNumber - 1] !== member.id}
+                              >
+                                {member.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                    </label>
-                  ))}
+                    );
+                  })}
                   {mediaTeam.length === 0 && (
                     <div className="text-center py-6 text-muted-foreground text-sm">
                       <Link href="/musicians">
@@ -631,29 +789,47 @@ export default function SetlistDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {dancers.map((dancer) => (
-                    <label
-                      key={dancer.id}
-                      className="flex items-center gap-3 cursor-pointer p-2 rounded hover-elevate"
-                      data-testid={`checkbox-dancer-${dancer.id}`}
-                    >
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4"
-                        checked={isTeamMemberAssigned(dancer.id)}
-                        onChange={(e) => {
-                          toggleTeamMemberMutation.mutate({
-                            musicianId: dancer.id,
-                            isAssigned: e.target.checked
-                          });
-                        }}
-                      />
-                      <div className="flex-1">
-                        <div className="font-medium">{dancer.name}</div>
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5, 6].map((slotNumber) => {
+                    const assignedDancers = (setlist?.musicians || [])
+                      .filter(m => !m.positionId && dancers.find(d => d.id === m.musicianId))
+                      .map(m => m.musicianId);
+                    const currentAssignment = assignedDancers[slotNumber - 1];
+                    
+                    return (
+                      <div key={slotNumber} className="space-y-1">
+                        <label className="text-sm font-medium">Dancer {slotNumber}</label>
+                        <Select
+                          value={currentAssignment || "none"}
+                          onValueChange={(musicianId) => {
+                            const newAssignments = [...assignedDancers];
+                            if (musicianId === "none") {
+                              newAssignments.splice(slotNumber - 1, 1);
+                            } else {
+                              newAssignments[slotNumber - 1] = musicianId;
+                            }
+                            updateDancerSlotsMutation.mutate(newAssignments.filter(Boolean));
+                          }}
+                        >
+                          <SelectTrigger data-testid={`select-dancer-${slotNumber}`}>
+                            <SelectValue placeholder="Unassigned" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Unassigned</SelectItem>
+                            {dancers.map((dancer) => (
+                              <SelectItem 
+                                key={dancer.id} 
+                                value={dancer.id}
+                                disabled={assignedDancers.includes(dancer.id) && assignedDancers[slotNumber - 1] !== dancer.id}
+                              >
+                                {dancer.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                    </label>
-                  ))}
+                    );
+                  })}
                   {dancers.length === 0 && (
                     <div className="text-center py-6 text-muted-foreground text-sm">
                       <Link href="/musicians">

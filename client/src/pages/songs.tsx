@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Search, Edit, Trash2, Music2 } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Music2, LayoutGrid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Toggle } from "@/components/ui/toggle";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AddEditSongDialog } from "@/components/add-edit-song-dialog";
 import { SongDetailDialog } from "@/components/song-detail-dialog";
@@ -30,6 +31,7 @@ export default function SongsPage() {
   const [songToEdit, setSongToEdit] = useState<Song | null>(null);
   const [songToAddToSetlist, setSongToAddToSetlist] = useState<Song | null>(null);
   const [songToDelete, setSongToDelete] = useState<Song | null>(null);
+  const [viewMode, setViewMode] = useState<"card" | "list">("card");
   const { toast } = useToast();
 
   const { data: songs = [], isLoading } = useQuery<Song[]>({
@@ -66,6 +68,11 @@ export default function SongsPage() {
     );
   });
 
+  // Sort alphabetically when in list view
+  const displaySongs = viewMode === "list"
+    ? [...filteredSongs].sort((a, b) => a.title.localeCompare(b.title))
+    : filteredSongs;
+
   return (
     <div className="flex flex-col h-full">
       <div className="border-b p-6 space-y-4">
@@ -82,15 +89,35 @@ export default function SongsPage() {
           </AddEditSongDialog>
         </div>
 
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search songs by title, artist, or tag..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-            data-testid="input-search-songs"
-          />
+        <div className="flex gap-3 items-center">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search songs by title, artist, or tag..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+              data-testid="input-search-songs"
+            />
+          </div>
+          <div className="flex gap-1 border rounded-md p-1">
+            <Toggle
+              pressed={viewMode === "card"}
+              onPressedChange={() => setViewMode("card")}
+              aria-label="Card view"
+              data-testid="button-card-view"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Toggle>
+            <Toggle
+              pressed={viewMode === "list"}
+              onPressedChange={() => setViewMode("list")}
+              aria-label="List view"
+              data-testid="button-list-view"
+            >
+              <List className="h-4 w-4" />
+            </Toggle>
+          </div>
         </div>
       </div>
 
@@ -109,7 +136,7 @@ export default function SongsPage() {
               </Card>
             ))}
           </div>
-        ) : filteredSongs.length === 0 ? (
+        ) : displaySongs.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-center">
             <Music2 className="h-16 w-16 text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">
@@ -129,9 +156,62 @@ export default function SongsPage() {
               </AddEditSongDialog>
             )}
           </div>
+        ) : viewMode === "list" ? (
+          <div className="space-y-2">
+            {displaySongs.map((song) => (
+              <div
+                key={song.id}
+                className="flex items-center justify-between p-4 bg-card border rounded-lg hover-elevate"
+                data-testid={`list-song-${song.id}`}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-lg" data-testid={`text-song-title-${song.id}`}>
+                    {song.title}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {song.artist || "Unknown Artist"}
+                  </div>
+                </div>
+                <div className="flex gap-2 ml-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedSong(song)}
+                    data-testid={`button-view-${song.id}`}
+                  >
+                    View
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSongToAddToSetlist(song)}
+                    data-testid={`button-add-to-setlist-${song.id}`}
+                  >
+                    Add to Setlist
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSongToEdit(song)}
+                    data-testid={`button-edit-${song.id}`}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSongToDelete(song)}
+                    data-testid={`button-delete-${song.id}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredSongs.map((song) => (
+            {displaySongs.map((song) => (
               <Card key={song.id} className="hover-elevate" data-testid={`card-song-${song.id}`}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -236,10 +316,10 @@ export default function SongsPage() {
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              variant="destructive"
               onClick={() => songToDelete && deleteMutation.mutate(songToDelete.id)}
               disabled={deleteMutation.isPending}
               data-testid="button-confirm-delete"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete"}
             </AlertDialogAction>

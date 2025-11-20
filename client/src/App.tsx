@@ -40,32 +40,29 @@ function Router() {
 }
 
 function App() {
-  const style = {
-    "--sidebar-width": "16rem",
-    "--sidebar-width-icon": "3rem",
-  };
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AuthWrapper style={style as React.CSSProperties}>
-          <Router />
-        </AuthWrapper>
+        <AppContent />
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
   );
 }
 
-function AuthWrapper({ children, style }: { children: React.ReactNode; style: React.CSSProperties }) {
+function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
+  const style = {
+    "--sidebar-width": "16rem",
+    "--sidebar-width-icon": "3rem",
+  };
 
   if (isLoading || !isAuthenticated) {
-    return <>{children}</>;
+    return <Router />;
   }
 
   return (
-    <SidebarProvider style={style}>
+    <SidebarProvider style={style as React.CSSProperties}>
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
@@ -73,7 +70,7 @@ function AuthWrapper({ children, style }: { children: React.ReactNode; style: Re
             <SidebarTrigger data-testid="button-sidebar-toggle" />
           </header>
           <main className="flex-1 overflow-hidden">
-            {children}
+            <Router />
           </main>
         </div>
       </div>

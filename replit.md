@@ -4,6 +4,8 @@
 
 Worship Manager is a comprehensive church worship song and setlist management application designed to help worship teams organize songs, plan services, manage musicians, and track usage statistics. The application provides features for storing songs with chord notations, creating setlists with drag-and-drop reordering, chord transposition, musician scheduling, and customizable display options optimized for projection during worship services.
 
+**Authentication:** The application uses Replit Auth (OpenID Connect) for user authentication, supporting Google, GitHub, X, Apple, and email/password login methods. All application features require authentication.
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -61,6 +63,18 @@ Preferred communication style: Simple, everyday language.
 - Enables future database switching without changing business logic
 
 ### Database Schema
+
+**Authentication Tables:**
+
+1. **users** - User accounts (Replit Auth)
+   - Stores user ID (from Replit OIDC), email, name, profile image
+   - Synced automatically on login via upsert operation
+   - UUID primary keys
+
+2. **sessions** - Session storage (Replit Auth)
+   - Stores encrypted session data for logged-in users
+   - Managed by connect-pg-simple session store
+   - 7-day session TTL
 
 **Core Tables:**
 

@@ -29,6 +29,10 @@ export function getSession() {
     ttl: sessionTtl,
     tableName: "sessions",
   });
+  
+  // Use secure cookies only in production (HTTPS)
+  const isProduction = process.env.NODE_ENV === "production";
+  
   return session({
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,
@@ -36,7 +40,8 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: isProduction,
+      sameSite: isProduction ? "lax" : undefined,
       maxAge: sessionTtl,
     },
   });
@@ -65,7 +70,12 @@ async function upsertUser(
 }
 
 export async function setupAuth(app: Express) {
-  app.set("trust proxy", 1);
+  // Only trust proxy in production (when behind actual reverse proxy)
+  const isProduction = process.env.NODE_ENV === "production";
+  if (isProduction) {
+    app.set("trust proxy", 1);
+  }
+  
   app.use(getSession());
   app.use(passport.initialize());
   app.use(passport.session());
@@ -85,38 +95,56 @@ export async function setupAuth(app: Express) {
   // Keep track of registered strategies
   const registeredStrategies = new Set<string>();
 
-  // Helper function to ensure strategy exists for a domain
-  const ensureStrategy = (domain: string) => {
-    const strategyName = `replitauth:${domain}`;
+  // Helper function to build callback URL with correct protocol, host, and port
+  const buildCallbackUrl = (req: any): string => {
+    const protocol = req.protocol || "http";
+    const host = req.get("host"); // Includes port if present
+    return `${protocol}://${host}/api/callback`;
+  };
+
+  // Helper function to build logout redirect URL
+  const buildLogoutRedirectUrl = (req: any): string => {
+    const protocol = req.protocol || "http";
+    const host = req.get("host"); // Includes port if present
+    return `${protocol}://${host}`;
+  };
+
+  // Helper function to ensure strategy exists for a domain with the correct protocol
+  const ensureStrategy = (req: any) => {
+    const callbackURL = buildCallbackUrl(req);
+    const host = req.get("host");
+    const strategyName = `replitauth:${host}:${req.protocol}`;
+    
     if (!registeredStrategies.has(strategyName)) {
       const strategy = new Strategy(
         {
           name: strategyName,
           config,
           scope: "openid email profile offline_access",
-          callbackURL: `https://${domain}/api/callback`,
+          callbackURL,
         },
         verify,
       );
       passport.use(strategy);
       registeredStrategies.add(strategyName);
     }
+    return strategyName;
   };
 
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   app.get("/api/login", (req, res, next) => {
-    ensureStrategy(req.hostname);
-    passport.authenticate(`replitauth:${req.hostname}`, {
+    const strategyName = ensureStrategy(req);
+    passport.authenticate(strategyName, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
     })(req, res, next);
   });
 
   app.get("/api/callback", (req, res, next) => {
-    ensureStrategy(req.hostname);
-    passport.authenticate(`replitauth:${req.hostname}`, {
+    const strategyName = ensureStrategy(req);
+    passport.authenticate(strategyName, {
       successReturnToOrRedirect: "/",
       failureRedirect: "/api/login",
     })(req, res, next);
@@ -127,7 +155,7 @@ export async function setupAuth(app: Express) {
       res.redirect(
         client.buildEndSessionUrl(config, {
           client_id: process.env.REPL_ID!,
-          post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
+          post_logout_redirect_uri: buildLogoutRedirectUrl(req),
         }).href
       );
     });

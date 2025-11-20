@@ -17,27 +17,15 @@ import Landing from "@/pages/landing";
 import NotFound from "@/pages/not-found";
 
 function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
-  
-  // Development bypass: skip auth in development mode
-  const isDevelopment = import.meta.env.DEV;
-  const shouldShowApp = isDevelopment || isAuthenticated;
-
   return (
     <Switch>
-      {isLoading || !shouldShowApp ? (
-        <Route path="/" component={Landing} />
-      ) : (
-        <>
-          <Route path="/" component={DashboardPage} />
-          <Route path="/songs" component={SongsPage} />
-          <Route path="/setlists" component={SetlistsPage} />
-          <Route path="/setlists/:id" component={SetlistDetailPage} />
-          <Route path="/setlists/:id/present" component={ProjectionDisplayPage} />
-          <Route path="/musicians" component={MusiciansPage} />
-          <Route path="/statistics" component={StatisticsPage} />
-        </>
-      )}
+      <Route path="/" component={DashboardPage} />
+      <Route path="/songs" component={SongsPage} />
+      <Route path="/setlists" component={SetlistsPage} />
+      <Route path="/setlists/:id" component={SetlistDetailPage} />
+      <Route path="/setlists/:id/present" component={ProjectionDisplayPage} />
+      <Route path="/musicians" component={MusiciansPage} />
+      <Route path="/statistics" component={StatisticsPage} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -65,8 +53,12 @@ function AppContent() {
   const isDevelopment = import.meta.env.DEV;
   const shouldShowApp = isDevelopment || isAuthenticated;
 
-  if (isLoading || !shouldShowApp) {
-    return <Router />;
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+  }
+
+  if (!shouldShowApp) {
+    return <Landing />;
   }
 
   return (

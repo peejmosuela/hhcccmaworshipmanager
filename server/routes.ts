@@ -352,8 +352,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/setlists/:id/songs", async (req, res) => {
     try {
       const { songId, transposedKey } = req.body;
-      console.log("[Add Song] Request:", { setlistId: req.params.id, songId, transposedKey });
-      
       if (!songId) {
         return res.status(400).json({ error: "songId is required" });
       }
@@ -366,10 +364,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         order: 0, // Will be recalculated by storage layer
       });
 
-      console.log("[Add Song] Success:", setlistSong);
       res.status(201).json(setlistSong);
     } catch (error) {
-      console.error("[Add Song] Error:", error);
+      console.error("Error adding song to setlist:", error);
       res.status(400).json({ error: "Failed to add song to setlist" });
     }
   });

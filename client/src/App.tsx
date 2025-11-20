@@ -55,9 +55,17 @@ function AppContent() {
   }
 
   if (!isAuthenticated) {
-    return <Landing />;
-  }
-
+  return (
+    <div style={{ maxWidth: 400, margin: "100px auto", padding: 40, border: "1px solid #ccc", borderRadius: 8, textAlign: "center" }}>
+      <h2>Worship Manager</h2>
+      <p>Please log in or register to continue</p>
+      <div style={{ marginTop: 20 }}>
+        <a href="/login" style={{ margin: 10, color: "#007bff" }}>Login</a>
+        <a href="/register" style={{ margin: 10, color: "#007bff" }}>Register</a>
+      </div>
+    </div>
+  );
+}
   return (
     <SidebarProvider style={style as React.CSSProperties}>
       <div className="flex h-screen w-full">

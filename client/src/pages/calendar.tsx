@@ -72,39 +72,42 @@ export default function CalendarPage() {
   const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   return (
-    <div className="h-full overflow-y-auto p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="h-full overflow-y-auto p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-4 md:space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-semibold mb-2" data-testid="text-calendar-title">
+            <h1 className="text-2xl md:text-4xl font-semibold mb-1 md:mb-2" data-testid="text-calendar-title">
               Calendar
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm md:text-base text-muted-foreground">
               View and manage your worship services schedule
             </p>
           </div>
         </div>
 
         <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <CalendarIcon className="h-5 w-5" />
-                {format(currentMonth, "MMMM yyyy")}
+          <CardHeader className="p-4 md:p-6">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                <CalendarIcon className="h-4 w-4 md:h-5 md:w-5" />
+                <span className="hidden sm:inline">{format(currentMonth, "MMMM yyyy")}</span>
+                <span className="sm:hidden">{format(currentMonth, "MMM yyyy")}</span>
               </CardTitle>
-              <div className="flex gap-2">
+              <div className="flex gap-1 md:gap-2">
                 <Button
                   variant="outline"
                   size="icon"
                   onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
                   data-testid="button-previous-month"
+                  className="h-8 w-8 md:h-9 md:w-9"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-3 w-3 md:h-4 md:w-4" />
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => setCurrentMonth(new Date())}
                   data-testid="button-today"
+                  className="h-8 md:h-9 text-xs md:text-sm px-2 md:px-4"
                 >
                   Today
                 </Button>
@@ -113,20 +116,22 @@ export default function CalendarPage() {
                   size="icon"
                   onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
                   data-testid="button-next-month"
+                  className="h-8 w-8 md:h-9 md:w-9"
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
                 </Button>
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-7 gap-2">
+          <CardContent className="p-2 md:p-6">
+            <div className="grid grid-cols-7 gap-1 md:gap-2">
               {weekDays.map((day) => (
                 <div
                   key={day}
-                  className="text-center font-semibold text-sm py-2 text-muted-foreground"
+                  className="text-center font-semibold text-xs md:text-sm py-1 md:py-2 text-muted-foreground"
                 >
-                  {day}
+                  <span className="hidden sm:inline">{day}</span>
+                  <span className="sm:hidden">{day.charAt(0)}</span>
                 </div>
               ))}
 
@@ -138,38 +143,38 @@ export default function CalendarPage() {
                 return (
                   <div
                     key={idx}
-                    className={`min-h-32 p-2 border rounded-lg ${
+                    className={`min-h-16 md:min-h-24 lg:min-h-32 p-1 md:p-2 border rounded ${
                       !isCurrentMonth ? "opacity-40 bg-muted/30" : "bg-card"
-                    } ${isToday ? "ring-2 ring-primary" : ""}`}
+                    } ${isToday ? "ring-1 md:ring-2 ring-primary" : ""}`}
                     data-testid={`calendar-day-${format(day, "yyyy-MM-dd")}`}
                   >
                     <div
-                      className={`text-sm font-medium mb-2 ${
+                      className={`text-xs md:text-sm font-medium mb-0.5 md:mb-2 ${
                         isToday ? "text-primary font-bold" : ""
                       }`}
                     >
                       {format(day, "d")}
                     </div>
 
-                    <div className="space-y-1">
+                    <div className="space-y-0.5 md:space-y-1">
                       {daySetlists.map((setlist) => (
                         <Link key={setlist.id} href={`/setlists/${setlist.id}`}>
                           <div
-                            className="p-2 rounded bg-primary/10 hover-elevate cursor-pointer border border-primary/20"
+                            className="p-1 md:p-2 rounded bg-primary/10 hover-elevate cursor-pointer border border-primary/20"
                             data-testid={`calendar-setlist-${setlist.id}`}
                           >
-                            <div className="text-xs font-semibold text-primary truncate mb-1">
+                            <div className="text-xs font-semibold text-primary truncate mb-0.5 md:mb-1">
                               {setlist.name}
                             </div>
                             {setlist.songLeader && (
-                              <div className="flex items-center gap-1 text-xs text-muted-foreground mb-1">
-                                <Music2 className="h-3 w-3" />
+                              <div className="hidden md:flex items-center gap-1 text-xs text-muted-foreground mb-1">
+                                <Music2 className="h-3 w-3 flex-shrink-0" />
                                 <span className="truncate">{setlist.songLeader.name}</span>
                               </div>
                             )}
                             {setlist.musicians.length > 0 && (
-                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <Users className="h-3 w-3" />
+                              <div className="hidden md:flex items-center gap-1 text-xs text-muted-foreground">
+                                <Users className="h-3 w-3 flex-shrink-0" />
                                 <span className="truncate">
                                   {setlist.musicians.length} {setlist.musicians.length === 1 ? "person" : "people"}
                                 </span>

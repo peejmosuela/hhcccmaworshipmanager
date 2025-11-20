@@ -3,7 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { useState, useEffect, useCallback } from "react";
 import { type Song, type SetlistSong, type Setlist } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, X, Settings2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Settings2, Music } from "lucide-react";
 import { transposeChord, getAllKeys, parseChordLine } from "@/lib/chordUtils";
 import { cn } from "@/lib/utils";
 import {
@@ -25,21 +25,23 @@ export default function ProjectionDisplayPage() {
   const [showControls, setShowControls] = useState(false);
   const [controlsTimeout, setControlsTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  const { data: setlist } = useQuery<Setlist>({
+  const { data: setlist, isLoading: setlistLoading } = useQuery<Setlist>({
     queryKey: ["/api/setlists", setlistId],
   });
 
-  const { data: setlistSongs = [] } = useQuery<SetlistSong[]>({
+  const { data: setlistSongs = [], isLoading: songsLoading } = useQuery<SetlistSong[]>({
     queryKey: ["/api/setlists", setlistId, "songs"],
   });
 
-  const { data: allSongs = [] } = useQuery<Song[]>({
+  const { data: allSongs = [], isLoading: allSongsLoading } = useQuery<Song[]>({
     queryKey: ["/api/songs"],
   });
 
   const sortedSetlistSongs = [...setlistSongs].sort((a, b) => a.order - b.order);
   const currentSetlistSong = sortedSetlistSongs[currentIndex];
   const currentSong = allSongs.find((s) => s.id === currentSetlistSong?.songId);
+
+  const isLoading = setlistLoading || songsLoading || allSongsLoading;
 
   const handleMouseMove = () => {
     setShowControls(true);
@@ -86,10 +88,38 @@ export default function ProjectionDisplayPage() {
     return () => window.removeEventListener("keydown", handleKeyPress);
   }, [handleKeyPress]);
 
-  if (!currentSong || !currentSetlistSong) {
+  if (isLoading) {
     return (
       <div className="h-screen w-screen bg-background flex items-center justify-center">
         <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
+  if (sortedSetlistSongs.length === 0) {
+    return (
+      <div className="h-screen w-screen bg-background flex flex-col items-center justify-center gap-4">
+        <Music className="h-16 w-16 text-muted-foreground" />
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">No Songs in Setlist</h2>
+          <p className="text-muted-foreground mb-4">
+            Add songs to this setlist to use presentation mode.
+          </p>
+          <Button
+            onClick={() => setLocation("/setlists")}
+            data-testid="button-back-to-setlists"
+          >
+            Back to Setlists
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentSong || !currentSetlistSong) {
+    return (
+      <div className="h-screen w-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Song not found...</p>
       </div>
     );
   }

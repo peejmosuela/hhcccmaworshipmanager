@@ -542,7 +542,7 @@ export default function ProjectionDisplayPage() {
                 size="icon"
                 onClick={() => setFontSize((prev) => Math.min(prev + 4, 64))}
                 data-testid="button-increase-font"
-                className="h-7 w-7 md:h-9 md:w-9"
+                className="h-7 w-7 md:h-9 md:w-9 text-[#ffffff]"
               >
                 <ZoomIn className="h-3 w-3 md:h-4 md:w-4" />
               </Button>
@@ -576,7 +576,7 @@ export default function ProjectionDisplayPage() {
                 size="icon"
                 onClick={() => containerRef.current?.scrollBy({ top: -window.innerHeight * 0.8, behavior: "smooth" })}
                 data-testid="button-scroll-up"
-                className="h-7 w-7 md:h-9 md:w-9"
+                className="h-7 w-7 md:h-9 md:w-9 text-[#ffffff]"
               >
                 <ChevronUp className="h-3 w-3 md:h-4 md:w-4" />
               </Button>
@@ -585,7 +585,7 @@ export default function ProjectionDisplayPage() {
                 size="icon"
                 onClick={() => containerRef.current?.scrollBy({ top: window.innerHeight * 0.8, behavior: "smooth" })}
                 data-testid="button-scroll-down"
-                className="h-7 w-7 md:h-9 md:w-9"
+                className="h-7 w-7 md:h-9 md:w-9 text-[#ffffff]"
               >
                 <ChevronDown className="h-3 w-3 md:h-4 md:w-4" />
               </Button>
@@ -618,7 +618,7 @@ export default function ProjectionDisplayPage() {
                 }}
                 title="Toggle color scheme"
                 data-testid="button-color-scheme"
-                className="h-7 w-7 md:h-9 md:w-9"
+                className="h-7 w-7 md:h-9 md:w-9 text-[#ffffff]"
               >
                 <Palette className="h-3 w-3 md:h-4 md:w-4" />
               </Button>
@@ -630,6 +630,7 @@ export default function ProjectionDisplayPage() {
                 size="sm"
                 onClick={() => setShowAddSong(!showAddSong)}
                 data-testid="button-add-song"
+                className="text-[#ffffff]"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Song
@@ -641,7 +642,7 @@ export default function ProjectionDisplayPage() {
               size="icon"
               onClick={() => setLocation("/setlists")}
               data-testid="button-close"
-              className="h-7 w-7 md:h-9 md:w-9"
+              className="h-7 w-7 md:h-9 md:w-9 text-[#ffffff]"
             >
               <X className="h-4 w-4 md:h-5 md:w-5" />
             </Button>

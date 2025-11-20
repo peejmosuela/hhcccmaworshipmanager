@@ -31,7 +31,7 @@ const menuItems = [
     icon: ListMusic,
   },
   {
-    title: "TEAM",
+    title: "Team",
     url: "/musicians",
     icon: Users,
   },

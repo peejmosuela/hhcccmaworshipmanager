@@ -3,7 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { type Song, type Setlist, type SongLeader, type Musician } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { ChevronUp, ChevronDown, X, ZoomIn, ZoomOut, Music, Palette, Plus } from "lucide-react";
+import { ChevronUp, ChevronDown, X, ZoomIn, ZoomOut, Music, Palette, Plus, Check, ChevronsUpDown } from "lucide-react";
 import { transposeChord, getSemitoneDifference, parseChordLine, getAllKeys } from "@/lib/chordUtils";
 import { cn } from "@/lib/utils";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -15,6 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 interface SetlistSongWithSong {
   id: string;
@@ -46,6 +48,7 @@ export default function ProjectionDisplayPage() {
   const [showAddSong, setShowAddSong] = useState(false);
   const [selectedSongToAdd, setSelectedSongToAdd] = useState<Song | null>(null);
   const [transposeKeyForNewSong, setTransposeKeyForNewSong] = useState<string>("");
+  const [songSearchOpen, setSongSearchOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const songRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
@@ -98,13 +101,8 @@ export default function ProjectionDisplayPage() {
 
   const addSongMutation = useMutation({
     mutationFn: async ({ songId, transposedKey }: { songId: string; transposedKey?: string }) => {
-      const maxOrder = sortedSetlistSongs.length > 0 
-        ? Math.max(...sortedSetlistSongs.map(s => s.order))
-        : 0;
-      
       return apiRequest("POST", `/api/setlists/${setlistId}/songs`, {
         songId,
-        order: maxOrder + 1,
         transposedKey: transposedKey || null,
       });
     },
@@ -117,6 +115,7 @@ export default function ProjectionDisplayPage() {
       setShowAddSong(false);
       setSelectedSongToAdd(null);
       setTransposeKeyForNewSong("");
+      setSongSearchOpen(false);
     },
     onError: () => {
       toast({
@@ -352,6 +351,7 @@ export default function ProjectionDisplayPage() {
                       setShowAddSong(false);
                       setSelectedSongToAdd(null);
                       setTransposeKeyForNewSong("");
+                      setSongSearchOpen(false);
                     }}
                     data-testid="button-close-add-song"
                   >
@@ -379,7 +379,9 @@ export default function ProjectionDisplayPage() {
                           onClick={() => {
                             setSelectedSongToAdd(null);
                             setTransposeKeyForNewSong("");
+                            setSongSearchOpen(true);
                           }}
+                          data-testid="button-change-song"
                         >
                           Change Song
                         </Button>
@@ -424,6 +426,7 @@ export default function ProjectionDisplayPage() {
                         onClick={() => {
                           setSelectedSongToAdd(null);
                           setTransposeKeyForNewSong("");
+                          setSongSearchOpen(false);
                         }}
                         data-testid="button-cancel-add-song-confirm"
                       >
@@ -443,40 +446,67 @@ export default function ProjectionDisplayPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="grid gap-3">
-                    {allSongs
-                      .filter(song => !sortedSetlistSongs.some(ss => ss.songId === song.id))
-                      .map((song) => (
-                        <div
-                          key={song.id}
+                  <div className="space-y-4">
+                    <p className="text-lg mb-2">Search for a song to add:</p>
+                    <Popover open={songSearchOpen} onOpenChange={setSongSearchOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={songSearchOpen}
                           className={cn(
-                            "p-4 rounded-md border cursor-pointer hover-elevate active-elevate-2",
-                            colorScheme === "dark" && "bg-white/5 border-white/20",
-                            colorScheme === "light" && "bg-black/5 border-black/20",
-                            colorScheme === "inverted" && "bg-gray-800/10 border-gray-700/30"
+                            "w-full justify-between text-lg h-14",
+                            colorScheme === "dark" && "bg-white/10 border-white/30 text-white hover:bg-white/20",
+                            colorScheme === "light" && "bg-black/5 border-black/20 text-black hover:bg-black/10",
+                            colorScheme === "inverted" && "bg-gray-800/20 border-gray-700/40 text-gray-900 hover:bg-gray-800/30"
                           )}
-                          onClick={() => {
-                            setSelectedSongToAdd(song);
-                            setTransposeKeyForNewSong(song.originalKey);
-                          }}
-                          data-testid={`add-song-${song.id}`}
+                          data-testid="button-search-song"
                         >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="text-xl font-semibold">{song.title}</div>
-                              <div className="text-sm opacity-70">{song.artist}</div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-lg font-semibold">Key: {song.originalKey}</div>
-                              {song.tags && song.tags.length > 0 && (
-                                <div className="text-xs opacity-60 mt-1">
-                                  {song.tags.join(", ")}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                          <span className={!selectedSongToAdd ? "opacity-60" : ""}>
+                            {selectedSongToAdd ? selectedSongToAdd.title : "Select song..."}
+                          </span>
+                          <ChevronsUpDown className="ml-2 h-5 w-5 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0" style={{ width: "var(--radix-popover-trigger-width)" }}>
+                        <Command>
+                          <CommandInput placeholder="Search songs..." data-testid="input-search-song" />
+                          <CommandList>
+                            <CommandEmpty>No songs found.</CommandEmpty>
+                            <CommandGroup>
+                              {allSongs
+                                .filter(song => !sortedSetlistSongs.some(ss => ss.songId === song.id))
+                                .map((song) => (
+                                  <CommandItem
+                                    key={song.id}
+                                    value={`${song.title} ${song.artist}`}
+                                    onSelect={() => {
+                                      setSelectedSongToAdd(song);
+                                      setTransposeKeyForNewSong(song.originalKey);
+                                      setSongSearchOpen(false);
+                                    }}
+                                    data-testid={`search-result-${song.id}`}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        selectedSongToAdd?.id === song.id ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    <div className="flex-1">
+                                      <div className="font-medium">{song.title}</div>
+                                      <div className="text-sm text-muted-foreground">{song.artist}</div>
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      Key: {song.originalKey}
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     {allSongs.filter(song => !sortedSetlistSongs.some(ss => ss.songId === song.id)).length === 0 && (
                       <div className="text-center py-8 opacity-60">
                         All songs are already in this setlist

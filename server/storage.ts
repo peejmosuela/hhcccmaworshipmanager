@@ -260,33 +260,29 @@ export class DbStorage implements IStorage {
   }
 
   async addSongToSetlist(data: InsertSetlistSong): Promise<SetlistSong> {
-    // Use transaction with row locking for atomic order calculation
-    const result = await db.transaction(async (tx) => {
-      // Lock the parent setlist row to prevent concurrent inserts (even for empty setlists)
-      await tx.select()
-        .from(setlists)
-        .where(eq(setlists.id, data.setlistId))
-        .for('update');
-      
-      // Calculate next order within the locked transaction (zero-based)
-      const maxOrderResult = await tx.select({ 
-        maxOrder: sql<number>`COALESCE(MAX(${setlistSongs.order}), -1)` 
-      })
-        .from(setlistSongs)
-        .where(eq(setlistSongs.setlistId, data.setlistId));
-      
-      const nextOrder = (maxOrderResult[0]?.maxOrder ?? -1) + 1;
-      
-      // Insert with calculated order
-      const inserted = await tx.insert(setlistSongs).values({
-        ...data,
-        order: nextOrder,
-      }).returning();
-      
-      return inserted[0];
-    });
+    // Note: Neon HTTP driver doesn't support transactions
+    // We rely on the UNIQUE constraint on (setlistId, order) to prevent duplicates
+    // In practice, race conditions are rare for this use case
     
-    // Track song usage (outside transaction since it's not critical for consistency)
+    // Calculate next order (zero-based)
+    const maxOrderResult = await db.select({ 
+      maxOrder: sql<number>`COALESCE(MAX(${setlistSongs.order}), -1)` 
+    })
+      .from(setlistSongs)
+      .where(eq(setlistSongs.setlistId, data.setlistId));
+    
+    const nextOrder = (maxOrderResult[0]?.maxOrder ?? -1) + 1;
+    
+    // Insert with calculated order
+    // The UNIQUE constraint on (setlistId, order) will prevent duplicates if there's a race
+    const inserted = await db.insert(setlistSongs).values({
+      ...data,
+      order: nextOrder,
+    }).returning();
+    
+    const result = inserted[0];
+    
+    // Track song usage
     if (result) {
       await this.trackSongUsage({
         songId: data.songId,

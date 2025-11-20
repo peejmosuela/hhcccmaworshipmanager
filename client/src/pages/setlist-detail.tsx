@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useParams, Link, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { type Setlist, type Song, type Musician, type SongLeader, type SetlistSong } from "@shared/schema";
+import { type Setlist, type Song, type Musician, type SongLeader, type SetlistSong, type Position, type SetlistMusician } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,10 +41,14 @@ interface SetlistSongWithSong extends SetlistSong {
   song: Song;
 }
 
+interface SetlistMusic extends SetlistMusician {
+  musician: Musician;
+}
+
 interface SetlistWithSongs extends Setlist {
   songs: SetlistSongWithSong[];
   songLeader?: SongLeader;
-  musicians: Array<{ id: string; musicianId: string; musician: Musician }>;
+  musicians: SetlistMusic[];
 }
 
 function SortableSongItem({ 
@@ -112,6 +116,10 @@ export default function SetlistDetailPage() {
     queryKey: ["/api/musicians"],
   });
 
+  const { data: positions = [] } = useQuery<Position[]>({
+    queryKey: ["/api/positions"],
+  });
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -153,13 +161,26 @@ export default function SetlistDetailPage() {
     },
   });
 
-  const updateMusiciansMutation = useMutation({
-    mutationFn: async (musicianIds: string[]) => {
-      return apiRequest("PUT", `/api/setlists/${setlistId}/musicians`, { musicianIds });
+  const updatePositionAssignmentMutation = useMutation({
+    mutationFn: async ({ positionId, musicianId }: { positionId: string; musicianId: string | null }) => {
+      // Get the latest setlist data from the cache at mutation time
+      const currentSetlist = queryClient.getQueryData<SetlistWithSongs>(["/api/setlists", setlistId]);
+      const currentAssignments = currentSetlist?.musicians || [];
+      
+      // Remove any existing assignment for this position, keep others
+      const newAssignments = currentAssignments
+        .filter(m => m.positionId !== positionId)
+        .map(m => ({ musicianId: m.musicianId, positionId: m.positionId || undefined }));
+      
+      // Add the new assignment if a musician was selected
+      if (musicianId) {
+        newAssignments.push({ musicianId, positionId });
+      }
+      
+      return apiRequest("PUT", `/api/setlists/${setlistId}/musicians`, { assignments: newAssignments });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/setlists", setlistId] });
-      toast({ title: "Success", description: "Musicians updated" });
     },
   });
 
@@ -183,7 +204,13 @@ export default function SetlistDetailPage() {
     (song) => !setlist?.songs.some((ss) => ss.songId === song.id)
   );
 
-  const selectedMusicianIds = setlist?.musicians.map((m) => m.musicianId) || [];
+  const getAssignedMusician = (positionId: string) => {
+    const assignment = setlist?.musicians.find(m => m.positionId === positionId);
+    return assignment?.musicianId || "none";
+  };
+
+  // Filter musicians to only show Band Musicians for positions
+  const bandMusicians = allMusicians.filter(m => m.teamCategory === "Band Musicians");
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-full">Loading...</div>;
@@ -343,45 +370,71 @@ export default function SetlistDetailPage() {
           </div>
 
           <div className="space-y-6">
+            {setlist.songLeader && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Song Leader
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-lg">
+                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <User className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <div className="font-medium">{setlist.songLeader.name}</div>
+                      {setlist.songLeader.contact && (
+                        <div className="text-sm text-muted-foreground">{setlist.songLeader.contact}</div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
-                  Musicians
+                  Band Positions
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {allMusicians.map((musician) => (
-                    <label
-                      key={musician.id}
-                      className="flex items-center gap-3 cursor-pointer p-2 rounded hover-elevate"
-                      data-testid={`checkbox-musician-${musician.id}`}
-                    >
-                      <input
-                        type="checkbox"
-                        className="w-4 h-4"
-                        checked={selectedMusicianIds.includes(musician.id)}
-                        onChange={(e) => {
-                          const newIds = e.target.checked
-                            ? [...selectedMusicianIds, musician.id]
-                            : selectedMusicianIds.filter((id) => id !== musician.id);
-                          updateMusiciansMutation.mutate(newIds);
+                  {positions.map((position) => (
+                    <div key={position.id} className="space-y-1">
+                      <label className="text-sm font-medium">{position.name}</label>
+                      <Select
+                        value={getAssignedMusician(position.id)}
+                        onValueChange={(musicianId) => {
+                          updatePositionAssignmentMutation.mutate({
+                            positionId: position.id,
+                            musicianId: musicianId === "none" ? null : musicianId
+                          });
                         }}
-                      />
-                      <div className="flex-1">
-                        <div className="font-medium">{musician.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {musician.instrument}
-                        </div>
-                      </div>
-                    </label>
+                      >
+                        <SelectTrigger data-testid={`select-position-${position.name.toLowerCase().replace(/\s+/g, '-')}`}>
+                          <SelectValue placeholder="Unassigned" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Unassigned</SelectItem>
+                          {bandMusicians.map((musician) => (
+                            <SelectItem key={musician.id} value={musician.id}>
+                              {musician.name}
+                              {musician.instrument && ` - ${musician.instrument}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   ))}
-                  {allMusicians.length === 0 && (
+                  {bandMusicians.length === 0 && (
                     <div className="text-center py-6 text-muted-foreground text-sm">
                       <Link href="/musicians">
                         <Button variant="outline" size="sm">
-                          Add Musicians
+                          Add Band Musicians
                         </Button>
                       </Link>
                     </div>

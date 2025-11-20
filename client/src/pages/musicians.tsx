@@ -38,18 +38,52 @@ export default function MusiciansPage() {
       </div>
 
       <div className="flex-1 overflow-auto p-6">
-        <Tabs defaultValue="musicians" className="w-full">
-          <TabsList>
-            <TabsTrigger value="musicians" data-testid="tab-musicians">Band Musicians</TabsTrigger>
-            <TabsTrigger value="leaders" data-testid="tab-leaders">Song Leaders</TabsTrigger>
+        <Tabs defaultValue="band" className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="band" data-testid="tab-band-musicians">Band</TabsTrigger>
+            <TabsTrigger value="leaders" data-testid="tab-leaders">Leaders</TabsTrigger>
+            <TabsTrigger value="media" data-testid="tab-media">Media</TabsTrigger>
+            <TabsTrigger value="singers" data-testid="tab-singers">Singers</TabsTrigger>
+            <TabsTrigger value="dancers" data-testid="tab-dancers">Dancers</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="musicians" className="mt-6">
+          <TabsContent value="band" className="mt-6">
             <MusiciansTab
               musicianToEdit={musicianToEdit}
               setMusicianToEdit={setMusicianToEdit}
               musicianToDelete={musicianToDelete}
               setMusicianToDelete={setMusicianToDelete}
+              category="Band Musicians"
+            />
+          </TabsContent>
+
+          <TabsContent value="media" className="mt-6">
+            <MusiciansTab
+              musicianToEdit={musicianToEdit}
+              setMusicianToEdit={setMusicianToEdit}
+              musicianToDelete={musicianToDelete}
+              setMusicianToDelete={setMusicianToDelete}
+              category="Media"
+            />
+          </TabsContent>
+
+          <TabsContent value="singers" className="mt-6">
+            <MusiciansTab
+              musicianToEdit={musicianToEdit}
+              setMusicianToEdit={setMusicianToEdit}
+              musicianToDelete={musicianToDelete}
+              setMusicianToDelete={setMusicianToDelete}
+              category="Backup Singers"
+            />
+          </TabsContent>
+
+          <TabsContent value="dancers" className="mt-6">
+            <MusiciansTab
+              musicianToEdit={musicianToEdit}
+              setMusicianToEdit={setMusicianToEdit}
+              musicianToDelete={musicianToDelete}
+              setMusicianToDelete={setMusicianToDelete}
+              category="Dancers"
             />
           </TabsContent>
 
@@ -72,15 +106,18 @@ interface MusiciansTabProps {
   setMusicianToEdit: (m: Musician | null) => void;
   musicianToDelete: Musician | null;
   setMusicianToDelete: (m: Musician | null) => void;
+  category: "Band Musicians" | "Media" | "Backup Singers" | "Dancers";
 }
 
-function MusiciansTab({ musicianToEdit, setMusicianToEdit, musicianToDelete, setMusicianToDelete }: MusiciansTabProps) {
+function MusiciansTab({ musicianToEdit, setMusicianToEdit, musicianToDelete, setMusicianToDelete, category }: MusiciansTabProps) {
   const [showDialog, setShowDialog] = useState(false);
   const { toast } = useToast();
 
-  const { data: musicians = [], isLoading } = useQuery<Musician[]>({
+  const { data: allMusicians = [], isLoading } = useQuery<Musician[]>({
     queryKey: ["/api/musicians"],
   });
+
+  const musicians = allMusicians.filter(m => m.teamCategory === category);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -93,13 +130,20 @@ function MusiciansTab({ musicianToEdit, setMusicianToEdit, musicianToDelete, set
     },
   });
 
+  const categoryLabels = {
+    "Band Musicians": "Band Musicians",
+    "Media": "Media Team Members",
+    "Backup Singers": "Backup Singers",
+    "Dancers": "Dancers"
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-medium">Band Musicians</h2>
+        <h2 className="text-xl font-medium">{categoryLabels[category]}</h2>
         <Button onClick={() => { setMusicianToEdit(null); setShowDialog(true); }} data-testid="button-add-musician">
           <Plus className="mr-2 h-4 w-4" />
-          Add Musician
+          Add Team Member
         </Button>
       </div>
 
@@ -116,11 +160,11 @@ function MusiciansTab({ musicianToEdit, setMusicianToEdit, musicianToDelete, set
       ) : musicians.length === 0 ? (
         <Card className="p-12 text-center">
           <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium mb-2">No musicians yet</h3>
-          <p className="text-muted-foreground mb-4">Add your worship team members</p>
+          <h3 className="text-lg font-medium mb-2">No team members yet</h3>
+          <p className="text-muted-foreground mb-4">Add members to your {category.toLowerCase()} team</p>
           <Button onClick={() => setShowDialog(true)} data-testid="button-add-first-musician">
             <Plus className="mr-2 h-4 w-4" />
-            Add First Musician
+            Add First Member
           </Button>
         </Card>
       ) : (
@@ -167,6 +211,7 @@ function MusiciansTab({ musicianToEdit, setMusicianToEdit, musicianToDelete, set
         musician={musicianToEdit}
         open={showDialog}
         onClose={() => { setShowDialog(false); setMusicianToEdit(null); }}
+        category={category}
       />
 
       <AlertDialog open={!!musicianToDelete} onOpenChange={(open) => !open && setMusicianToDelete(null)}>
@@ -314,7 +359,7 @@ function SongLeadersTab({ leaderToEdit, setLeaderToEdit, leaderToDelete, setLead
   );
 }
 
-function MusicianDialog({ musician, open, onClose }: { musician: Musician | null; open: boolean; onClose: () => void }) {
+function MusicianDialog({ musician, open, onClose, category }: { musician: Musician | null; open: boolean; onClose: () => void; category: "Band Musicians" | "Media" | "Backup Singers" | "Dancers" }) {
   const { toast } = useToast();
   const form = useForm<InsertMusician>({
     resolver: zodResolver(insertMusicianSchema),
@@ -322,6 +367,7 @@ function MusicianDialog({ musician, open, onClose }: { musician: Musician | null
       name: musician?.name || "",
       instrument: musician?.instrument || "",
       contact: musician?.contact || "",
+      teamCategory: musician?.teamCategory || category,
     },
   });
 
@@ -356,7 +402,7 @@ function MusicianDialog({ musician, open, onClose }: { musician: Musician | null
     <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{musician ? "Edit Musician" : "Add Musician"}</DialogTitle>
+          <DialogTitle>{musician ? "Edit Team Member" : "Add Team Member"}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -373,19 +419,21 @@ function MusicianDialog({ musician, open, onClose }: { musician: Musician | null
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="instrument"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Instrument</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={field.value || ""} placeholder="Guitar, Piano, Drums..." data-testid="input-musician-instrument" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {category === "Band Musicians" && (
+              <FormField
+                control={form.control}
+                name="instrument"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Instrument</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value || ""} placeholder="Guitar, Piano, Drums..." data-testid="input-musician-instrument" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <FormField
               control={form.control}
               name="contact"

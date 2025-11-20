@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { insertSetlistSchema, type Setlist, type InsertSetlist, type SongLeader } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -41,6 +42,7 @@ export function AddEditSetlistDialog({ setlist, children, onClose }: AddEditSetl
       date: setlist?.date ? new Date(setlist.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       songLeaderId: setlist?.songLeaderId || "none",
       notes: setlist?.notes || "",
+      isTemplate: setlist?.isTemplate || 0,
     },
   });
 
@@ -51,6 +53,7 @@ export function AddEditSetlistDialog({ setlist, children, onClose }: AddEditSetl
         date: new Date(setlist.date).toISOString().split('T')[0],
         songLeaderId: setlist.songLeaderId || "none",
         notes: setlist.notes || "",
+        isTemplate: setlist.isTemplate || 0,
       });
       setOpen(true);
     }
@@ -221,6 +224,28 @@ export function AddEditSetlistDialog({ setlist, children, onClose }: AddEditSetl
                     />
                   </FormControl>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="isTemplate"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between rounded-md border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Save as Template</FormLabel>
+                    <FormDescription className="text-xs">
+                      Mark this setlist as a template that can be reused for future services
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value === 1}
+                      onCheckedChange={(checked) => field.onChange(checked ? 1 : 0)}
+                      data-testid="switch-is-template"
+                    />
+                  </FormControl>
                 </FormItem>
               )}
             />

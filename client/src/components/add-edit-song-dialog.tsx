@@ -39,6 +39,7 @@ export function AddEditSongDialog({ song, children, onClose }: AddEditSongDialog
       originalKey: song?.originalKey || "C",
       lyrics: song?.lyrics || "",
       tags: song?.tags?.join(", ") || "",
+      arrangement: song?.arrangement || "",
     },
   });
 
@@ -50,6 +51,7 @@ export function AddEditSongDialog({ song, children, onClose }: AddEditSongDialog
         originalKey: song.originalKey,
         lyrics: song.lyrics,
         tags: song.tags?.join(", ") || "",
+        arrangement: song.arrangement || "",
       });
       setOpen(true);
     }
@@ -111,6 +113,7 @@ export function AddEditSongDialog({ song, children, onClose }: AddEditSongDialog
       originalKey: data.originalKey,
       lyrics: data.lyrics,
       tags: tagsArray,
+      arrangement: data.arrangement || null,
     };
 
     if (song) {
@@ -223,6 +226,29 @@ export function AddEditSongDialog({ song, children, onClose }: AddEditSongDialog
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="arrangement"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Arrangement Notes</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Intro, Verse 1, Chorus, Verse 2, Chorus, Bridge, Chorus x2, Outro"
+                      className="min-h-20 resize-none"
+                      {...field}
+                      value={field.value || ""}
+                      data-testid="input-song-arrangement"
+                    />
+                  </FormControl>
+                  <FormDescription className="text-xs">
+                    Song structure and arrangement markers (optional)
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

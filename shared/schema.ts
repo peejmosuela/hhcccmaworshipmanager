@@ -11,6 +11,7 @@ export const songs = pgTable("songs", {
   originalKey: text("original_key").notNull(), // e.g., "C", "G", "Am", "D#"
   lyrics: text("lyrics").notNull(), // Multi-line format: chord line followed by lyric line
   tags: text("tags").array(), // e.g., ["worship", "praise", "fast"]
+  arrangement: text("arrangement"), // e.g., "Intro, Verse 1, Chorus, Verse 2, Chorus, Bridge, Chorus x2, Outro"
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -38,6 +39,7 @@ export const setlists = pgTable("setlists", {
   date: timestamp("date").notNull(),
   songLeaderId: varchar("song_leader_id").references(() => songLeaders.id),
   notes: text("notes"),
+  isTemplate: integer("is_template").default(0).notNull(), // 0 = false, 1 = true
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

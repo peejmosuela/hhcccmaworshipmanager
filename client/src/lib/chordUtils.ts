@@ -111,6 +111,24 @@ export function getAllKeys(): string[] {
 }
 
 /**
+ * Parse a chord line and extract chord positions
+ */
+export function parseChordLine(line: string): Array<{ chord: string; position: number }> {
+  const chords: Array<{ chord: string; position: number }> = [];
+  let match;
+  const regex = /\b([A-G][b#]?(?:m|maj|min|dim|aug|sus|add)?(?:\d*)?)\b/g;
+  
+  while ((match = regex.exec(line)) !== null) {
+    chords.push({
+      chord: match[1],
+      position: match.index,
+    });
+  }
+  
+  return chords;
+}
+
+/**
  * Transpose to a new key
  */
 export function transposeToKey(lyrics: string, fromKey: string, toKey: string): string {

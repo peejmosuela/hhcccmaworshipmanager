@@ -271,6 +271,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/setlists/:id/duplicate", async (req, res) => {
+    try {
+      const { name, date } = req.body;
+      
+      let validatedName: string | undefined;
+      let validatedDate: Date | undefined;
+      
+      if (name !== undefined && name !== null) {
+        if (typeof name !== 'string' || name.trim() === '') {
+          return res.status(400).json({ error: "Name must be a non-empty string" });
+        }
+        validatedName = name.trim();
+      }
+      
+      if (date !== undefined && date !== null) {
+        const parsedDate = new Date(date);
+        if (isNaN(parsedDate.getTime())) {
+          return res.status(400).json({ error: "Invalid date format" });
+        }
+        validatedDate = parsedDate;
+      }
+      
+      const duplicated = await storage.duplicateSetlist(
+        req.params.id,
+        validatedName,
+        validatedDate
+      );
+      if (!duplicated) {
+        return res.status(404).json({ error: "Setlist not found" });
+      }
+      res.status(201).json(duplicated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to duplicate setlist" });
+    }
+  });
+
   // Setlist Songs
   app.post("/api/setlists/:id/songs", async (req, res) => {
     try {

@@ -9,6 +9,7 @@ import SongsPage from "@/pages/songs";
 import SetlistsPage from "@/pages/setlists";
 import MusiciansPage from "@/pages/musicians";
 import StatisticsPage from "@/pages/statistics";
+import ProjectionDisplayPage from "@/pages/projection-display";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -16,6 +17,7 @@ function Router() {
     <Switch>
       <Route path="/" component={SongsPage} />
       <Route path="/setlists" component={SetlistsPage} />
+      <Route path="/setlists/:id/present" component={ProjectionDisplayPage} />
       <Route path="/musicians" component={MusiciansPage} />
       <Route path="/statistics" component={StatisticsPage} />
       <Route component={NotFound} />

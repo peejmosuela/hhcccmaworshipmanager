@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Plus, Calendar, User, Music, Edit } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
+import { Plus, Calendar, User, Music, Edit, Presentation, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,13 +9,40 @@ import { AddEditSetlistDialog } from "@/components/add-edit-setlist-dialog";
 import { SetlistDetailDialog } from "@/components/setlist-detail-dialog";
 import type { Setlist } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SetlistsPage() {
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const [setlistToEdit, setSetlistToEdit] = useState<Setlist | null>(null);
   const [selectedSetlist, setSelectedSetlist] = useState<Setlist | null>(null);
 
   const { data: setlists = [], isLoading } = useQuery<Setlist[]>({
     queryKey: ["/api/setlists"],
+  });
+
+  const duplicateMutation = useMutation({
+    mutationFn: async (setlistId: string) => {
+      return apiRequest("POST", `/api/setlists/${setlistId}/duplicate`, {
+        name: undefined,
+        date: undefined,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/setlists"] });
+      toast({
+        title: "Success",
+        description: "Setlist duplicated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to duplicate setlist",
+        variant: "destructive",
+      });
+    },
   });
 
   const sortedSetlists = [...setlists].sort((a, b) => 
@@ -72,18 +100,27 @@ export default function SetlistsPage() {
             {sortedSetlists.map((setlist) => (
               <Card key={setlist.id} className="hover-elevate" data-testid={`card-setlist-${setlist.id}`}>
                 <CardHeader>
-                  <CardTitle className="text-xl" data-testid={`text-setlist-name-${setlist.id}`}>
-                    {setlist.name}
-                  </CardTitle>
-                  <CardDescription className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    {new Date(setlist.date).toLocaleDateString('en-US', {
-                      weekday: 'short',
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric'
-                    })}
-                  </CardDescription>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <CardTitle className="text-xl" data-testid={`text-setlist-name-${setlist.id}`}>
+                        {setlist.name}
+                      </CardTitle>
+                      <CardDescription className="flex items-center gap-2 mt-1">
+                        <Calendar className="h-4 w-4" />
+                        {new Date(setlist.date).toLocaleDateString('en-US', {
+                          weekday: 'short',
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </CardDescription>
+                    </div>
+                    {setlist.isTemplate === 1 && (
+                      <Badge variant="secondary" data-testid={`badge-template-${setlist.id}`}>
+                        Template
+                      </Badge>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {setlist.notes && (
@@ -92,7 +129,7 @@ export default function SetlistsPage() {
                     </p>
                   )}
 
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -101,6 +138,24 @@ export default function SetlistsPage() {
                       data-testid={`button-view-setlist-${setlist.id}`}
                     >
                       View & Edit
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => setLocation(`/setlists/${setlist.id}/present`)}
+                      data-testid={`button-present-setlist-${setlist.id}`}
+                    >
+                      <Presentation className="mr-2 h-4 w-4" />
+                      Present
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => duplicateMutation.mutate(setlist.id)}
+                      disabled={duplicateMutation.isPending}
+                      data-testid={`button-duplicate-setlist-${setlist.id}`}
+                    >
+                      <Copy className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"

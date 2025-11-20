@@ -168,6 +168,15 @@ export function SongDetailDialog({ song, open, onClose, onEdit }: SongDetailDial
               </Card>
             )}
 
+            {song.arrangement && (
+              <Card className="p-6">
+                <h3 className="font-medium mb-3">Arrangement</h3>
+                <p className="text-sm text-muted-foreground" data-testid="text-song-arrangement">
+                  {song.arrangement}
+                </p>
+              </Card>
+            )}
+
             <div className="flex gap-2">
               <Button className="flex-1" onClick={onEdit} data-testid="button-edit-from-detail">
                 <Edit className="mr-2 h-4 w-4" />

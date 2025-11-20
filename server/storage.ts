@@ -13,6 +13,8 @@ import {
   type InsertSetlistMusician,
   type SongUsage,
   type InsertSongUsage,
+  type User,
+  type UpsertUser,
   songs,
   musicians,
   songLeaders,
@@ -20,11 +22,17 @@ import {
   setlistSongs,
   setlistMusicians,
   songUsage,
+  users,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
+  // User operations for Replit Auth
+  // (IMPORTANT) these user operations are mandatory for Replit Auth.
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
+
   // Songs
   getSongs(): Promise<Song[]>;
   getSong(id: string): Promise<Song | undefined>;
@@ -72,6 +80,28 @@ export interface IStorage {
 }
 
 export class DbStorage implements IStorage {
+  // User operations for Replit Auth
+  // (IMPORTANT) these user operations are mandatory for Replit Auth.
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
   // Songs
   async getSongs(): Promise<Song[]> {
     return await db.select().from(songs).orderBy(desc(songs.createdAt));

@@ -7,8 +7,25 @@ import {
   insertSongLeaderSchema,
   insertSetlistSchema,
 } from "@shared/schema";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup Replit Auth (must be first)
+  // Reference: blueprint:javascript_log_in_with_replit
+  await setupAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
   // Songs CRUD
   app.get("/api/songs", async (_req, res) => {
     try {

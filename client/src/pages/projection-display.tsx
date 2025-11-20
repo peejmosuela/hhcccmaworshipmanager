@@ -268,7 +268,7 @@ export default function ProjectionDisplayPage() {
           }
         `}</style>
         
-        <div className="max-w-5xl mx-auto px-8 py-16 space-y-24">
+        <div className="max-w-5xl mx-auto px-4 md:px-8 py-8 md:py-16 space-y-12 md:space-y-24">
           {sortedSetlistSongs.map((setlistSong, index) => (
             <div
               key={setlistSong.id}
@@ -276,13 +276,13 @@ export default function ProjectionDisplayPage() {
               className="min-h-screen flex flex-col justify-center"
               data-testid={`song-section-${index}`}
             >
-              <div className="mb-8 pb-4 border-b border-current/20">
-                <div className="flex items-center justify-between">
+              <div className="mb-4 md:mb-8 pb-2 md:pb-4 border-b border-current/20">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 md:gap-0">
                   <div className="flex-1">
-                    <h2 className="text-4xl font-bold mb-2" data-testid={`song-title-${index}`}>
+                    <h2 className="text-2xl md:text-4xl font-bold mb-1 md:mb-2" data-testid={`song-title-${index}`}>
                       {setlistSong.song.title}
                     </h2>
-                    <p className="text-xl opacity-70">
+                    <p className="text-base md:text-xl opacity-70">
                       {setlistSong.song.artist}
                     </p>
                   </div>
@@ -523,69 +523,74 @@ export default function ProjectionDisplayPage() {
           showControls ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       >
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-semibold" data-testid="text-setlist-name">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between px-3 md:px-6 py-2 md:py-4 gap-2">
+          <div className="flex items-center gap-2 md:gap-4">
+            <h1 className="text-sm md:text-xl font-semibold truncate max-w-[150px] md:max-w-none" data-testid="text-setlist-name">
               {setlist.name}
             </h1>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-xs md:text-sm text-muted-foreground">
               {sortedSetlistSongs.length} songs
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 border-r border-white/20 pr-4">
+          <div className="flex items-center gap-1 md:gap-4 flex-wrap">
+            <div className="flex items-center gap-1 border-r border-white/20 pr-2 md:pr-4">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setFontSize((prev) => Math.max(prev - 4, 16))}
                 data-testid="button-decrease-font"
+                className="h-7 w-7 md:h-9 md:w-9"
               >
-                <ZoomOut className="h-4 w-4" />
+                <ZoomOut className="h-3 w-3 md:h-4 md:w-4" />
               </Button>
-              <span className="text-sm w-12 text-center">{fontSize}px</span>
+              <span className="text-xs md:text-sm w-8 md:w-12 text-center">{fontSize}px</span>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setFontSize((prev) => Math.min(prev + 4, 64))}
                 data-testid="button-increase-font"
+                className="h-7 w-7 md:h-9 md:w-9"
               >
-                <ZoomIn className="h-4 w-4" />
+                <ZoomIn className="h-3 w-3 md:h-4 md:w-4" />
               </Button>
             </div>
 
-            <div className="flex items-center gap-2 border-r border-white/20 pr-4">
+            <div className="flex items-center gap-1 border-r border-white/20 pr-2 md:pr-4">
               <Button
                 variant={highlightChords ? "default" : "ghost"}
                 size="sm"
                 onClick={() => setHighlightChords((prev) => !prev)}
                 data-testid="button-toggle-chords"
+                className="text-xs md:text-sm h-7 md:h-8 px-2 md:px-3"
               >
                 Chords
               </Button>
             </div>
 
-            <div className="flex items-center gap-2 border-r border-white/20 pr-4">
+            <div className="flex items-center gap-1 border-r border-white/20 pr-2 md:pr-4">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => containerRef.current?.scrollBy({ top: -window.innerHeight * 0.8, behavior: "smooth" })}
                 data-testid="button-scroll-up"
+                className="h-7 w-7 md:h-9 md:w-9"
               >
-                <ChevronUp className="h-4 w-4" />
+                <ChevronUp className="h-3 w-3 md:h-4 md:w-4" />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => containerRef.current?.scrollBy({ top: window.innerHeight * 0.8, behavior: "smooth" })}
                 data-testid="button-scroll-down"
+                className="h-7 w-7 md:h-9 md:w-9"
               >
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="h-3 w-3 md:h-4 md:w-4" />
               </Button>
             </div>
 
-            <div className="flex items-center gap-2 border-r border-white/20 pr-4 max-w-xs overflow-x-auto">
-              <span className="text-sm text-muted-foreground whitespace-nowrap mr-2">Jump:</span>
+            <div className="flex items-center gap-1 border-r border-white/20 pr-2 md:pr-4 overflow-x-auto max-w-[200px] md:max-w-xs">
+              <span className="text-xs md:text-sm text-muted-foreground whitespace-nowrap mr-1">Jump:</span>
               {sortedSetlistSongs.map((setlistSong, idx) => (
                 <Button
                   key={setlistSong.id}
@@ -593,14 +598,14 @@ export default function ProjectionDisplayPage() {
                   size="sm"
                   onClick={() => scrollToSong(setlistSong.id)}
                   data-testid={`button-jump-to-song-${idx}`}
-                  className="min-w-[2rem]"
+                  className="min-w-[1.5rem] md:min-w-[2rem] h-6 md:h-8 px-1 md:px-2 text-xs md:text-sm"
                 >
                   {idx + 1}
                 </Button>
               ))}
             </div>
 
-            <div className="flex items-center gap-2 border-r border-white/20 pr-4">
+            <div className="flex items-center gap-1 border-r border-white/20 pr-2 md:pr-4">
               <Button
                 variant="ghost"
                 size="icon"
@@ -611,12 +616,13 @@ export default function ProjectionDisplayPage() {
                 }}
                 title="Toggle color scheme"
                 data-testid="button-color-scheme"
+                className="h-7 w-7 md:h-9 md:w-9"
               >
-                <Palette className="h-4 w-4" />
+                <Palette className="h-3 w-3 md:h-4 md:w-4" />
               </Button>
             </div>
 
-            <div className="flex items-center gap-2 border-r border-white/20 pr-4">
+            <div className="hidden md:flex items-center gap-2 border-r border-white/20 pr-4">
               <Button
                 variant="ghost"
                 size="sm"
@@ -633,8 +639,9 @@ export default function ProjectionDisplayPage() {
               size="icon"
               onClick={() => setLocation("/setlists")}
               data-testid="button-close"
+              className="h-7 w-7 md:h-9 md:w-9"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4 md:h-5 md:w-5" />
             </Button>
           </div>
         </div>
